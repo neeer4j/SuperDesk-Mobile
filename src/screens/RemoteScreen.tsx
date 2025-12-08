@@ -24,7 +24,7 @@ interface RemoteScreenProps {
     route: {
         params: {
             sessionId: string;
-            role: 'viewer' | 'host';
+            role: 'viewer';
         };
     };
     navigation: any;
@@ -33,59 +33,112 @@ interface RemoteScreenProps {
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
-    const { sessionId, role } = route.params;
+    const { sessionId } = route.params;
 
     const [connectionState, setConnectionState] = useState<string>('connecting');
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
     const [showControls, setShowControls] = useState(true);
-    const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+    const [isRemoteControlEnabled, setIsRemoteControlEnabled] = useState(false);
+    const [streamDimensions, setStreamDimensions] = useState({ width: 1920, height: 1080 });
 
-    const viewRef = useRef<View>(null);
+    const cleanupRef = useRef(false);
+    const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         initializeConnection();
 
         // Set up view size for input translation
         inputService.setViewSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+        inputService.setSessionId(sessionId);
 
-        // Auto-hide controls after 3 seconds
-        const timer = setTimeout(() => setShowControls(false), 3000);
+        // Auto-hide controls after 5 seconds
+        startControlsTimeout();
+
+        // Handle session events
+        socketService.onHostStoppedSharing(() => {
+            if (!cleanupRef.current) {
+                Alert.alert('Host Stopped', 'The host has stopped sharing their screen.', [
+                    { text: 'OK', onPress: () => navigation.goBack() },
+                ]);
+            }
+        });
+
+        socketService.onHostDisconnected(() => {
+            if (!cleanupRef.current) {
+                Alert.alert('Host Disconnected', 'The host has left the session.', [
+                    { text: 'OK', onPress: () => navigation.goBack() },
+                ]);
+            }
+        });
+
+        socketService.onSessionEnded(() => {
+            if (!cleanupRef.current) {
+                Alert.alert('Session Ended', 'The session has been ended.', [
+                    { text: 'OK', onPress: () => navigation.goBack() },
+                ]);
+            }
+        });
+
+        socketService.onRemoteControlEnabled(() => {
+            setIsRemoteControlEnabled(true);
+        });
+
+        socketService.onRemoteControlDisabled(() => {
+            setIsRemoteControlEnabled(false);
+        });
 
         return () => {
-            clearTimeout(timer);
+            cleanupRef.current = true;
+            if (controlsTimeoutRef.current) {
+                clearTimeout(controlsTimeoutRef.current);
+            }
             webRTCService.close();
         };
     }, []);
 
+    const startControlsTimeout = () => {
+        if (controlsTimeoutRef.current) {
+            clearTimeout(controlsTimeoutRef.current);
+        }
+        controlsTimeoutRef.current = setTimeout(() => {
+            setShowControls(false);
+        }, 5000);
+    };
+
     const initializeConnection = async () => {
         try {
-            // Initialize WebRTC
-            await webRTCService.initialize(role, sessionId);
+            // IMPORTANT: Initialize WebRTC FIRST (sets up ontrack handler before joining)
+            await webRTCService.initialize('viewer', sessionId);
 
-            // Set up callbacks
+            // Set up remote stream callback
             webRTCService.onRemoteStream((stream) => {
-                console.log('📱 Got remote stream');
+                console.log('📱 Got remote stream!');
                 setRemoteStream(stream);
             });
 
             webRTCService.onConnectionStateChange((state) => {
+                console.log('📱 Connection state:', state);
                 setConnectionState(state);
-                if (state === 'failed' || state === 'disconnected') {
-                    Alert.alert('Disconnected', 'Connection to remote PC was lost.', [
-                        { text: 'OK', onPress: () => navigation.goBack() },
-                    ]);
+
+                if (state === 'failed') {
+                    if (!cleanupRef.current) {
+                        Alert.alert('Connection Failed', 'Failed to connect to the host.', [
+                            { text: 'OK', onPress: () => navigation.goBack() },
+                        ]);
+                    }
+                } else if (state === 'disconnected') {
+                    if (!cleanupRef.current) {
+                        Alert.alert('Disconnected', 'Lost connection to the host.', [
+                            { text: 'OK', onPress: () => navigation.goBack() },
+                        ]);
+                    }
                 }
             });
 
-            // Join the session
-            socketService.joinSession(sessionId);
-
-            socketService.onSessionJoined((success) => {
-                if (!success) {
-                    Alert.alert('Session Not Found', 'The session code is invalid or expired.', [
-                        { text: 'OK', onPress: () => navigation.goBack() },
-                    ]);
-                }
+            // Enable data channel for low-latency input
+            webRTCService.onDataChannelOpen(() => {
+                console.log('📱 Data channel ready for input!');
+                setIsRemoteControlEnabled(true);
             });
 
         } catch (error) {
@@ -96,40 +149,55 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
         }
     };
 
-    // Gesture handlers
+    // Gesture handlers for remote control
     const tapGesture = Gesture.Tap()
         .onEnd((event) => {
-            inputService.onTap(event.x, event.y);
+            if (isRemoteControlEnabled) {
+                inputService.onTap(event.x, event.y);
+            }
         });
 
     const doubleTapGesture = Gesture.Tap()
         .numberOfTaps(2)
         .onEnd((event) => {
-            inputService.onDoubleTap(event.x, event.y);
+            if (isRemoteControlEnabled) {
+                inputService.onDoubleTap(event.x, event.y);
+            }
         });
 
     const longPressGesture = Gesture.LongPress()
         .minDuration(500)
         .onEnd((event) => {
-            inputService.onLongPress(event.x, event.y);
+            if (isRemoteControlEnabled) {
+                inputService.onLongPress(event.x, event.y);
+            }
         });
 
     const panGesture = Gesture.Pan()
         .onStart((event) => {
-            inputService.onTouchStart(event.x, event.y);
+            if (isRemoteControlEnabled) {
+                inputService.onTouchStart(event.x, event.y);
+            }
         })
         .onUpdate((event) => {
-            inputService.onTouchMove(event.x, event.y);
+            if (isRemoteControlEnabled) {
+                inputService.onTouchMove(event.x, event.y);
+            }
         })
         .onEnd(() => {
-            inputService.onTouchEnd();
+            if (isRemoteControlEnabled) {
+                inputService.onTouchEnd();
+            }
         });
 
     const pinchGesture = Gesture.Pinch()
         .onUpdate((event) => {
-            inputService.onPinch(event.scale, event.focalX, event.focalY);
+            if (isRemoteControlEnabled) {
+                inputService.onPinch(event.scale, event.focalX, event.focalY);
+            }
         });
 
+    // Combine gestures with priority to double tap
     const composedGesture = Gesture.Race(
         doubleTapGesture,
         Gesture.Simultaneous(
@@ -142,19 +210,60 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
 
     const toggleControls = () => {
         setShowControls(!showControls);
+        if (!showControls) {
+            startControlsTimeout();
+        }
     };
 
     const handleDisconnect = () => {
-        webRTCService.close();
-        navigation.goBack();
+        Alert.alert(
+            'Disconnect',
+            'Are you sure you want to disconnect from this session?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Disconnect',
+                    style: 'destructive',
+                    onPress: () => {
+                        webRTCService.close();
+                        navigation.goBack();
+                    },
+                },
+            ]
+        );
     };
 
     const getConnectionStatusColor = () => {
         switch (connectionState) {
-            case 'connected': return '#22c55e';
-            case 'connecting': return '#f59e0b';
-            case 'failed': return '#ef4444';
-            default: return '#888';
+            case 'connected':
+                return '#22c55e';
+            case 'connecting':
+            case 'new':
+                return '#f59e0b';
+            case 'failed':
+            case 'disconnected':
+                return '#ef4444';
+            default:
+                return '#888';
+        }
+    };
+
+    const getStatusText = () => {
+        if (remoteStream) {
+            return isRemoteControlEnabled ? 'Connected • Control Enabled' : 'Connected • View Only';
+        }
+        switch (connectionState) {
+            case 'connecting':
+            case 'new':
+                return 'Connecting...';
+            case 'connected':
+                return 'Waiting for video...';
+            case 'failed':
+                return 'Connection Failed';
+            case 'disconnected':
+                return 'Disconnected';
+            default:
+                return connectionState;
         }
     };
 
@@ -165,7 +274,7 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
             {/* Remote Stream View */}
             {remoteStream ? (
                 <GestureDetector gesture={composedGesture}>
-                    <View style={styles.streamContainer} ref={viewRef}>
+                    <View style={styles.streamContainer}>
                         <RTCView
                             streamURL={remoteStream.toURL()}
                             style={styles.stream}
@@ -176,23 +285,24 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
             ) : (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#8b5cf6" />
-                    <Text style={styles.loadingText}>
-                        {connectionState === 'connecting'
-                            ? 'Connecting to remote PC...'
-                            : 'Waiting for video stream...'}
-                    </Text>
+                    <Text style={styles.loadingText}>{getStatusText()}</Text>
                     <Text style={styles.sessionCode}>Session: {sessionId}</Text>
                 </View>
             )}
 
             {/* Overlay Controls */}
             {showControls && (
-                <View style={styles.controlsOverlay}>
+                <View style={styles.controlsOverlay} pointerEvents="box-none">
                     {/* Top Bar */}
                     <View style={styles.topBar}>
                         <View style={styles.sessionInfo}>
-                            <View style={[styles.statusDot, { backgroundColor: getConnectionStatusColor() }]} />
-                            <Text style={styles.sessionText}>{sessionId}</Text>
+                            <View
+                                style={[
+                                    styles.statusDot,
+                                    { backgroundColor: getConnectionStatusColor() },
+                                ]}
+                            />
+                            <Text style={styles.sessionText}>{getStatusText()}</Text>
                         </View>
 
                         <TouchableOpacity style={styles.closeButton} onPress={handleDisconnect}>
@@ -204,13 +314,6 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
                     <View style={styles.bottomBar}>
                         <TouchableOpacity
                             style={styles.controlButton}
-                            onPress={() => setIsKeyboardVisible(!isKeyboardVisible)}
-                        >
-                            <Text style={styles.controlButtonText}>⌨️</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.controlButton}
                             onPress={() => inputService.sendSpecialKey('escape')}
                         >
                             <Text style={styles.controlButtonText}>ESC</Text>
@@ -218,15 +321,40 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
 
                         <TouchableOpacity
                             style={styles.controlButton}
-                            onPress={() => inputService.sendKeyPress('', { ctrl: true, alt: true, meta: false })}
+                            onPress={() => inputService.sendSpecialKey('home')}
                         >
-                            <Text style={styles.controlButtonText}>Ctrl+Alt</Text>
+                            <Text style={styles.controlButtonText}>🏠</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.controlButton}
+                            onPress={() => inputService.sendSpecialKey('backspace')}
+                        >
+                            <Text style={styles.controlButtonText}>⌫</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[
+                                styles.controlButton,
+                                isRemoteControlEnabled && styles.controlButtonActive,
+                            ]}
+                            onPress={() => {
+                                if (isRemoteControlEnabled) {
+                                    socketService.disableRemoteControl(sessionId);
+                                } else {
+                                    socketService.enableRemoteControl(sessionId);
+                                }
+                            }}
+                        >
+                            <Text style={styles.controlButtonText}>
+                                {isRemoteControlEnabled ? '🖱️' : '🚫'}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 </View>
             )}
 
-            {/* Tap anywhere to toggle controls */}
+            {/* Tap anywhere to toggle controls (invisible overlay) */}
             <TouchableOpacity
                 style={styles.controlsToggle}
                 onPress={toggleControls}
@@ -277,29 +405,29 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: 16,
-        paddingTop: 40,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        paddingTop: 50,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
     },
     sessionInfo: {
         flexDirection: 'row',
         alignItems: 'center',
+        flex: 1,
     },
     statusDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        marginRight: 8,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        marginRight: 10,
     },
     sessionText: {
         color: '#fff',
         fontSize: 14,
-        fontWeight: '600',
-        letterSpacing: 2,
+        fontWeight: '500',
     },
     closeButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         backgroundColor: 'rgba(255, 255, 255, 0.2)',
         justifyContent: 'center',
         alignItems: 'center',
@@ -313,8 +441,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         padding: 16,
-        paddingBottom: 32,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        paddingBottom: 40,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
         gap: 12,
     },
     controlButton: {
@@ -324,6 +452,12 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(139, 92, 246, 0.3)',
         borderWidth: 1,
         borderColor: '#8b5cf6',
+        minWidth: 60,
+        alignItems: 'center',
+    },
+    controlButtonActive: {
+        backgroundColor: 'rgba(34, 197, 94, 0.3)',
+        borderColor: '#22c55e',
     },
     controlButtonText: {
         color: '#fff',
@@ -332,10 +466,10 @@ const styles = StyleSheet.create({
     },
     controlsToggle: {
         position: 'absolute',
-        top: 80,
+        top: 100,
         left: 0,
         right: 0,
-        bottom: 80,
+        bottom: 100,
     },
 });
 

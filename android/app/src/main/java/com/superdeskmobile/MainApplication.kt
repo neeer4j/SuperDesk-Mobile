@@ -7,6 +7,7 @@ import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.superdeskmobile.screencapture.ScreenCapturePackage
+import com.superdeskmobile.remotecontrol.RemoteControlPackage
 
 class MainApplication : Application(), ReactApplication {
 
@@ -15,8 +16,9 @@ class MainApplication : Application(), ReactApplication {
       context = applicationContext,
       packageList =
         PackageList(this).packages.apply {
-          // Add our custom screen capture package
+          // Add our custom packages
           add(ScreenCapturePackage())
+          add(RemoteControlPackage())
         },
     )
   }

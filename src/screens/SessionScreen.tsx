@@ -1,4 +1,4 @@
-// Session Screen - Host mode (share phone screen to PC)
+// Session Screen - Host mode (share phone screen to PC via WebRTC)
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
@@ -14,188 +14,238 @@ import {
 import { socketService } from '../services/SocketService';
 import { webRTCService } from '../services/WebRTCService';
 import { screenCaptureService } from '../services/ScreenCaptureService';
+import { remoteControlService } from '../services/RemoteControlService';
 
 interface SessionScreenProps {
     route: {
         params: {
             role: 'host';
+            sessionId: string;
+            guestId: string;
         };
     };
     navigation: any;
 }
 
-const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
-    const [sessionId, setSessionId] = useState<string | null>(null);
-    const [connectionState, setConnectionState] = useState<string>('creating');
-    const [isClientConnected, setIsClientConnected] = useState(false);
-    const [isCapturing, setIsCapturing] = useState(false);
-    const [captureError, setCaptureError] = useState<string | null>(null);
+type SessionStatus = 'initializing' | 'connecting' | 'connected' | 'streaming' | 'error';
 
-    const frameUnsubscribeRef = useRef<(() => void) | null>(null);
+const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
+    const { sessionId, guestId } = route.params;
+
+    const [status, setStatus] = useState<SessionStatus>('initializing');
+    const [isCapturing, setIsCapturing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [connectionState, setConnectionState] = useState<string>('new');
+    const [accessibilityEnabled, setAccessibilityEnabled] = useState(false);
+
+    const cleanupRef = useRef(false);
 
     useEffect(() => {
-        createSession();
+        checkAccessibilityService();
+        initializeWebRTC();
+
+        // Handle session end
+        socketService.onSessionEnded(() => {
+            if (!cleanupRef.current) {
+                Alert.alert('Session Ended', 'The session has been ended.');
+                handleGoBack(true);
+            }
+        });
 
         return () => {
-            stopCapture();
-            webRTCService.close();
+            cleanupRef.current = true;
+            cleanup();
         };
     }, []);
 
-    const createSession = async () => {
-        try {
-            // Set up session creation callback
-            socketService.onSessionCreated((id) => {
-                setSessionId(id);
-                setConnectionState('waiting');
-                initializeWebRTC(id);
-            });
-
-            // Create a new session
-            socketService.createSession();
-        } catch (error) {
-            console.error('❌ Failed to create session:', error);
-            Alert.alert('Error', 'Failed to create session.', [
-                { text: 'OK', onPress: () => navigation.goBack() },
-            ]);
+    const checkAccessibilityService = async () => {
+        const enabled = await remoteControlService.isServiceEnabled();
+        setAccessibilityEnabled(enabled);
+        if (!enabled) {
+            console.log('📱 Accessibility service not enabled - remote control will not work');
         }
     };
 
-    const initializeWebRTC = async (id: string) => {
+    const handleEnableAccessibility = async () => {
         try {
-            await webRTCService.initialize('host', id);
+            await remoteControlService.openAccessibilitySettings();
+        } catch (e) {
+            console.error('Failed to open accessibility settings:', e);
+        }
+    };
+
+    const initializeWebRTC = async () => {
+        try {
+            setStatus('initializing');
+
+            // Initialize WebRTC as host
+            await webRTCService.initialize('host', sessionId);
 
             webRTCService.onConnectionStateChange((state) => {
+                console.log('📱 WebRTC state:', state);
                 setConnectionState(state);
+
                 if (state === 'connected') {
-                    setIsClientConnected(true);
-                    // Auto-start screen capture when client connects
-                    startScreenCapture();
-                } else if (state === 'failed' || state === 'disconnected') {
-                    setIsClientConnected(false);
-                    stopCapture();
+                    setStatus('connected');
+                    // Start screen sharing once connected
+                    startScreenShare();
+                } else if (state === 'failed') {
+                    setError('Connection failed. Please try again.');
+                    setStatus('error');
+                } else if (state === 'disconnected') {
+                    if (!cleanupRef.current) {
+                        Alert.alert('Disconnected', 'Lost connection to the viewer.');
+                    }
                 }
             });
-        } catch (error) {
-            console.error('❌ WebRTC initialization error:', error);
+
+            // Listen for incoming input events from the desktop
+            webRTCService.onDataChannelMessage((message: string) => {
+                try {
+                    const event = JSON.parse(message);
+                    if (event.type === 'mouse' || event.type === 'keyboard' || event.type === 'touch') {
+                        // Handle remote input via accessibility service
+                        remoteControlService.handleRemoteInputEvent(event);
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse data channel message:', e);
+                }
+            });
+
+            // Now that we're initialized, start screen capture and create offer
+            await requestScreenPermissionAndShare();
+
+        } catch (err: any) {
+            console.error('❌ WebRTC init error:', err);
+            setError(err.message || 'Failed to initialize connection');
+            setStatus('error');
         }
     };
 
-    const startScreenCapture = async () => {
+    const requestScreenPermissionAndShare = async () => {
         if (Platform.OS !== 'android') {
-            setCaptureError('Screen capture only supported on Android');
+            setError('Screen sharing only supported on Android');
+            setStatus('error');
             return;
         }
 
         try {
-            // Request permission first
+            setStatus('connecting');
+
+            // Request screen capture permission
             const hasPermission = await screenCaptureService.requestPermission();
             if (!hasPermission) {
-                setCaptureError('Screen capture permission denied');
+                setError('Screen capture permission denied');
+                setStatus('error');
                 return;
             }
 
-            // Start capturing
-            await screenCaptureService.startCapture();
+            // Get the display media stream via WebRTC
+            const stream = await webRTCService.getDisplayMedia();
+            if (!stream) {
+                setError('Failed to get screen stream');
+                setStatus('error');
+                return;
+            }
+
+            // Add stream to peer connection
+            webRTCService.addStream(stream);
             setIsCapturing(true);
-            setCaptureError(null);
 
-            // Subscribe to frames and send via WebRTC data channel
-            frameUnsubscribeRef.current = screenCaptureService.onFrame((base64Frame) => {
-                // Send frame through data channel to PC
-                webRTCService.sendInputEvent({
-                    type: 'touch',
-                    action: 'frame',
-                    data: { frame: base64Frame },
-                });
-            });
+            // Create and send offer to the guest
+            await webRTCService.createOffer();
+            console.log('📱 Offer created and sent to guest');
 
-            console.log('📱 Screen capture started');
-        } catch (error: any) {
-            console.error('❌ Screen capture error:', error);
-            setCaptureError(error.message || 'Failed to start screen capture');
+        } catch (err: any) {
+            console.error('❌ Screen share error:', err);
+            setError(err.message || 'Failed to start screen share');
+            setStatus('error');
         }
     };
 
-    const stopCapture = async () => {
-        if (frameUnsubscribeRef.current) {
-            frameUnsubscribeRef.current();
-            frameUnsubscribeRef.current = null;
-        }
+    const startScreenShare = () => {
+        setStatus('streaming');
+        console.log('📱 Screen sharing started successfully');
+    };
 
+    const cleanup = async () => {
         try {
             await screenCaptureService.stopCapture();
-            setIsCapturing(false);
-        } catch (error) {
-            console.error('❌ Stop capture error:', error);
+        } catch (e) {
+            // Ignore
+        }
+        webRTCService.close();
+    };
+
+    const handleGoBack = (silent: boolean = false) => {
+        const doGoBack = async () => {
+            await cleanup();
+            navigation.goBack();
+        };
+
+        if (silent) {
+            doGoBack();
+        } else {
+            Alert.alert(
+                'End Session',
+                'Are you sure you want to stop sharing your screen?',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'End Session',
+                        style: 'destructive',
+                        onPress: () => {
+                            socketService.endSession(sessionId);
+                            doGoBack();
+                        },
+                    },
+                ]
+            );
         }
     };
 
     const handleShareCode = async () => {
-        if (!sessionId) return;
-
         try {
             await Share.share({
                 message: `Join my SuperDesk session: ${sessionId}`,
                 title: 'SuperDesk Session Code',
             });
-        } catch (error) {
-            console.error('❌ Share error:', error);
+        } catch (err) {
+            console.error('❌ Share error:', err);
         }
     };
 
-    const handleStopSession = () => {
-        Alert.alert(
-            'End Session',
-            'Are you sure you want to end this session?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'End Session',
-                    style: 'destructive',
-                    onPress: async () => {
-                        await stopCapture();
-                        webRTCService.close();
-                        navigation.goBack();
-                    },
-                },
-            ]
-        );
+    const handleRetry = () => {
+        setStatus('initializing');
+        setError(null);
+        initializeWebRTC();
     };
 
-    const handleManualStartCapture = () => {
-        startScreenCapture();
+    const formatSessionId = (id: string) => {
+        if (id.length >= 8) {
+            return id.slice(0, 4) + '-' + id.slice(4, 8);
+        }
+        return id;
     };
 
-    const getStatusMessage = () => {
-        if (captureError) {
-            return captureError;
-        }
-        if (isCapturing) {
-            return 'Streaming screen to PC...';
-        }
-        switch (connectionState) {
-            case 'creating':
-                return 'Creating session...';
-            case 'waiting':
-                return 'Waiting for PC to connect...';
+    const getStatusDisplay = () => {
+        switch (status) {
+            case 'initializing':
+                return { text: 'Initializing...', color: '#f59e0b' };
             case 'connecting':
-                return 'Connecting to PC...';
+                return { text: 'Starting screen share...', color: '#f59e0b' };
             case 'connected':
-                return 'PC connected!';
-            case 'failed':
-                return 'Connection failed';
+                return { text: 'Connected, setting up stream...', color: '#22c55e' };
+            case 'streaming':
+                return { text: 'Sharing screen to viewer', color: '#22c55e' };
+            case 'error':
+                return { text: error || 'An error occurred', color: '#ef4444' };
             default:
-                return connectionState;
+                return { text: 'Unknown state', color: '#888' };
         }
     };
 
-    const getStatusColor = () => {
-        if (captureError) return '#ef4444';
-        if (isCapturing) return '#22c55e';
-        if (isClientConnected) return '#22c55e';
-        return '#f59e0b';
-    };
+    const statusDisplay = getStatusDisplay();
 
     return (
         <View style={styles.container}>
@@ -203,97 +253,92 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={handleStopSession}>
+                <TouchableOpacity style={styles.backButton} onPress={() => handleGoBack()}>
                     <Text style={styles.backButtonText}>←</Text>
                 </TouchableOpacity>
-                <Text style={styles.title}>Host Session</Text>
+                <Text style={styles.title}>Hosting Session</Text>
                 <View style={styles.placeholder} />
             </View>
 
             {/* Main Content */}
             <View style={styles.content}>
                 {/* Session Code Display */}
-                {sessionId ? (
-                    <View style={styles.codeCard}>
-                        <Text style={styles.codeLabel}>Your Session Code</Text>
-                        <Text style={styles.codeValue}>{sessionId}</Text>
-                        <Text style={styles.codeHint}>
-                            Enter this code on your PC to connect
-                        </Text>
+                <View style={styles.codeCard}>
+                    <Text style={styles.codeLabel}>SESSION CODE</Text>
+                    <Text style={styles.codeValue}>{formatSessionId(sessionId)}</Text>
+                    <TouchableOpacity style={styles.shareButton} onPress={handleShareCode}>
+                        <Text style={styles.shareButtonText}>📤 Share Code</Text>
+                    </TouchableOpacity>
+                </View>
 
-                        <TouchableOpacity style={styles.shareButton} onPress={handleShareCode}>
-                            <Text style={styles.shareButtonText}>Share Code</Text>
-                        </TouchableOpacity>
-                    </View>
-                ) : (
-                    <View style={styles.loadingCard}>
-                        <ActivityIndicator size="large" color="#8b5cf6" />
-                        <Text style={styles.loadingText}>Creating session...</Text>
-                    </View>
-                )}
-
-                {/* Status */}
+                {/* Status Card */}
                 <View style={styles.statusCard}>
                     <View style={styles.statusRow}>
-                        <View style={[
-                            styles.statusIndicator,
-                            { backgroundColor: getStatusColor() }
-                        ]} />
-                        <Text style={styles.statusText}>{getStatusMessage()}</Text>
+                        <View style={[styles.statusDot, { backgroundColor: statusDisplay.color }]} />
+                        <Text style={styles.statusText}>{statusDisplay.text}</Text>
                     </View>
 
-                    {isCapturing && (
-                        <View style={styles.captureInfo}>
-                            <Text style={styles.captureInfoText}>
-                                📺 Screen is being shared
+                    {(status === 'initializing' || status === 'connecting') && (
+                        <ActivityIndicator
+                            size="small"
+                            color="#8b5cf6"
+                            style={{ marginTop: 16 }}
+                        />
+                    )}
+
+                    {status === 'streaming' && (
+                        <View style={styles.streamingInfo}>
+                            <Text style={styles.streamingEmoji}>📺</Text>
+                            <Text style={styles.streamingText}>
+                                Your screen is being shared with the connected viewer
                             </Text>
                         </View>
                     )}
 
-                    {isClientConnected && !isCapturing && !captureError && (
-                        <TouchableOpacity
-                            style={styles.startCaptureButton}
-                            onPress={handleManualStartCapture}
-                        >
-                            <Text style={styles.startCaptureButtonText}>Start Screen Share</Text>
-                        </TouchableOpacity>
-                    )}
-
-                    {captureError && (
-                        <TouchableOpacity
-                            style={styles.retryButton}
-                            onPress={handleManualStartCapture}
-                        >
-                            <Text style={styles.retryButtonText}>Retry</Text>
+                    {status === 'error' && (
+                        <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+                            <Text style={styles.retryButtonText}>🔄 Retry</Text>
                         </TouchableOpacity>
                     )}
                 </View>
 
-                {/* Instructions */}
-                <View style={styles.instructionsCard}>
-                    <Text style={styles.instructionsTitle}>How it works</Text>
-                    <View style={styles.step}>
-                        <Text style={styles.stepNumber}>1</Text>
-                        <Text style={styles.stepText}>Share the session code with your PC</Text>
+                {/* Connection Info */}
+                <View style={styles.infoCard}>
+                    <Text style={styles.infoTitle}>Connection Details</Text>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>WebRTC State:</Text>
+                        <Text style={styles.infoValue}>{connectionState}</Text>
                     </View>
-                    <View style={styles.step}>
-                        <Text style={styles.stepNumber}>2</Text>
-                        <Text style={styles.stepText}>Open SuperDesk on your PC and enter the code</Text>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Screen Capture:</Text>
+                        <Text style={styles.infoValue}>
+                            {isCapturing ? '✅ Active' : '⏳ Pending'}
+                        </Text>
                     </View>
-                    <View style={styles.step}>
-                        <Text style={styles.stepNumber}>3</Text>
-                        <Text style={styles.stepText}>Allow screen capture when prompted</Text>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Guest ID:</Text>
+                        <Text style={styles.infoValue}>{guestId?.slice(0, 8) || 'N/A'}</Text>
                     </View>
-                    <View style={styles.step}>
-                        <Text style={styles.stepNumber}>4</Text>
-                        <Text style={styles.stepText}>Your PC can now view and control this phone</Text>
-                    </View>
+                </View>
+
+                {/* Tips */}
+                <View style={styles.tipsCard}>
+                    <Text style={styles.tipsTitle}>💡 Tips</Text>
+                    <Text style={styles.tipText}>
+                        • The viewer can see everything on your screen
+                    </Text>
+                    <Text style={styles.tipText}>
+                        • Tap "End Session" when you're done sharing
+                    </Text>
+                    <Text style={styles.tipText}>
+                        • Keep this app in the foreground for best performance
+                    </Text>
                 </View>
             </View>
 
-            {/* Stop Button */}
+            {/* Footer */}
             <View style={styles.footer}>
-                <TouchableOpacity style={styles.stopButton} onPress={handleStopSession}>
+                <TouchableOpacity style={styles.stopButton} onPress={() => handleGoBack()}>
                     <Text style={styles.stopButtonText}>End Session</Text>
                 </TouchableOpacity>
             </View>
@@ -340,67 +385,49 @@ const styles = StyleSheet.create({
     },
     codeCard: {
         backgroundColor: '#16161e',
-        borderRadius: 20,
-        padding: 30,
+        borderRadius: 16,
+        padding: 24,
         alignItems: 'center',
-        borderWidth: 1,
+        borderWidth: 2,
         borderColor: '#8b5cf6',
-        marginBottom: 20,
+        marginBottom: 16,
     },
     codeLabel: {
         color: '#888',
-        fontSize: 14,
-        marginBottom: 16,
-        textTransform: 'uppercase',
+        fontSize: 12,
+        fontWeight: '600',
         letterSpacing: 1,
+        marginBottom: 8,
     },
     codeValue: {
         color: '#fff',
-        fontSize: 42,
+        fontSize: 36,
         fontWeight: 'bold',
-        letterSpacing: 8,
+        letterSpacing: 4,
         marginBottom: 16,
     },
-    codeHint: {
-        color: '#666',
-        fontSize: 14,
-        textAlign: 'center',
-        marginBottom: 20,
-    },
     shareButton: {
-        backgroundColor: '#8b5cf6',
-        paddingHorizontal: 30,
-        paddingVertical: 12,
-        borderRadius: 10,
+        backgroundColor: '#2a2a3a',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 8,
     },
     shareButtonText: {
         color: '#fff',
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '600',
-    },
-    loadingCard: {
-        backgroundColor: '#16161e',
-        borderRadius: 20,
-        padding: 40,
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    loadingText: {
-        color: '#888',
-        fontSize: 16,
-        marginTop: 20,
     },
     statusCard: {
         backgroundColor: '#16161e',
         borderRadius: 16,
         padding: 20,
-        marginBottom: 20,
+        marginBottom: 16,
     },
     statusRow: {
         flexDirection: 'row',
         alignItems: 'center',
     },
-    statusIndicator: {
+    statusDot: {
         width: 12,
         height: 12,
         borderRadius: 6,
@@ -411,70 +438,76 @@ const styles = StyleSheet.create({
         fontSize: 16,
         flex: 1,
     },
-    captureInfo: {
-        marginTop: 12,
-        paddingLeft: 24,
+    streamingInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 16,
+        backgroundColor: '#22c55e20',
+        padding: 12,
+        borderRadius: 8,
     },
-    captureInfoText: {
+    streamingEmoji: {
+        fontSize: 24,
+        marginRight: 12,
+    },
+    streamingText: {
         color: '#22c55e',
         fontSize: 14,
+        flex: 1,
     },
-    startCaptureButton: {
+    retryButton: {
         marginTop: 16,
         backgroundColor: '#8b5cf6',
         paddingVertical: 12,
         borderRadius: 8,
         alignItems: 'center',
     },
-    startCaptureButtonText: {
+    retryButtonText: {
         color: '#fff',
         fontSize: 14,
         fontWeight: '600',
     },
-    retryButton: {
-        marginTop: 12,
-        paddingVertical: 8,
-        alignItems: 'center',
+    infoCard: {
+        backgroundColor: '#16161e',
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 16,
     },
-    retryButtonText: {
-        color: '#8b5cf6',
+    infoTitle: {
+        color: '#fff',
         fontSize: 14,
         fontWeight: '600',
+        marginBottom: 12,
     },
-    instructionsCard: {
+    infoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+    infoLabel: {
+        color: '#888',
+        fontSize: 13,
+    },
+    infoValue: {
+        color: '#fff',
+        fontSize: 13,
+    },
+    tipsCard: {
         backgroundColor: '#16161e',
         borderRadius: 16,
         padding: 20,
     },
-    instructionsTitle: {
+    tipsTitle: {
         color: '#fff',
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '600',
-        marginBottom: 16,
-    },
-    step: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
         marginBottom: 12,
     },
-    stepNumber: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: '#8b5cf6',
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '600',
-        textAlign: 'center',
-        lineHeight: 24,
-        marginRight: 12,
-        overflow: 'hidden',
-    },
-    stepText: {
-        flex: 1,
+    tipText: {
         color: '#888',
-        fontSize: 14,
-        lineHeight: 20,
+        fontSize: 13,
+        marginBottom: 6,
+        lineHeight: 18,
     },
     footer: {
         padding: 20,

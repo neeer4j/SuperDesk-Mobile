@@ -14,27 +14,67 @@ interface RTCIceCandidateInit {
     usernameFragment?: string | null;
 }
 
-// Default to the SuperDesk server (same as PC app)
+// Default to the SuperDesk server
 const DEFAULT_SERVER_URL = 'https://superdesk-7m7f.onrender.com';
+
+// Session types
+export type SessionType = 'mobile' | 'desktop';
+
+// Event callback types
+export interface SessionCreatedData {
+    sessionId: string;
+}
+
+export interface GuestJoinedData {
+    guestId: string;
+    sessionId: string;
+}
+
+export interface OfferData {
+    offer: RTCSessionDescriptionInit;
+    from: string;
+    sessionId: string;
+}
+
+export interface AnswerData {
+    answer: RTCSessionDescriptionInit;
+    from: string;
+    sessionId: string;
+}
+
+export interface IceCandidateData {
+    candidate: RTCIceCandidateInit;
+    from: string;
+}
 
 class SocketService {
     private socket: Socket | null = null;
     private serverUrl: string = DEFAULT_SERVER_URL;
+    private currentSessionId: string | null = null;
 
     // Event callbacks
-    private onSessionCreatedCallback?: (sessionId: string) => void;
-    private onSessionJoinedCallback?: (success: boolean) => void;
-    private onOfferCallback?: (offer: RTCSessionDescriptionInit, from: string) => void;
-    private onAnswerCallback?: (answer: RTCSessionDescriptionInit) => void;
-    private onIceCandidateCallback?: (candidate: RTCIceCandidateInit) => void;
-    private onPeerDisconnectedCallback?: () => void;
+    private onSessionCreatedCallback?: (data: SessionCreatedData) => void;
+    private onSessionJoinedCallback?: (sessionId: string) => void;
+    private onSessionErrorCallback?: (error: string) => void;
+    private onGuestJoinedCallback?: (data: GuestJoinedData) => void;
+    private onOfferCallback?: (data: OfferData) => void;
+    private onAnswerCallback?: (data: AnswerData) => void;
+    private onIceCandidateCallback?: (data: IceCandidateData) => void;
+    private onScreenShareStartedCallback?: () => void;
+    private onHostStoppedSharingCallback?: () => void;
+    private onSessionEndedCallback?: () => void;
+    private onHostDisconnectedCallback?: () => void;
+    private onRemoteControlEnabledCallback?: () => void;
+    private onRemoteControlDisabledCallback?: () => void;
+    private onConnectedCallback?: () => void;
+    private onDisconnectedCallback?: () => void;
 
     connect(serverUrl?: string): Promise<void> {
         return new Promise((resolve, reject) => {
             this.serverUrl = serverUrl || DEFAULT_SERVER_URL;
 
             this.socket = io(this.serverUrl, {
-                transports: ['websocket'],
+                transports: ['websocket', 'polling'],
                 reconnection: true,
                 reconnectionAttempts: 5,
                 reconnectionDelay: 1000,
@@ -42,12 +82,18 @@ class SocketService {
 
             this.socket.on('connect', () => {
                 console.log('📱 Connected to signaling server');
+                this.onConnectedCallback?.();
                 resolve();
             });
 
             this.socket.on('connect_error', (error) => {
                 console.error('❌ Connection error:', error);
                 reject(error);
+            });
+
+            this.socket.on('disconnect', () => {
+                console.log('📱 Disconnected from signaling server');
+                this.onDisconnectedCallback?.();
             });
 
             this.setupEventListeners();
@@ -57,96 +103,264 @@ class SocketService {
     private setupEventListeners() {
         if (!this.socket) return;
 
-        // Session events
-        this.socket.on('session-created', (sessionId: string) => {
-            console.log('📱 Session created:', sessionId);
-            this.onSessionCreatedCallback?.(sessionId);
+        // Session created (host receives session ID)
+        this.socket.on('session-created', (data: SessionCreatedData) => {
+            console.log('📱 Session created:', data.sessionId);
+            this.currentSessionId = data.sessionId;
+            this.onSessionCreatedCallback?.(data);
         });
 
-        this.socket.on('session-joined', (data: { success: boolean }) => {
-            console.log('📱 Session joined:', data.success);
-            this.onSessionJoinedCallback?.(data.success);
+        // Session joined (guest confirmation)
+        this.socket.on('session-joined', (sessionId: string) => {
+            console.log('📱 Session joined:', sessionId);
+            this.currentSessionId = sessionId;
+            this.onSessionJoinedCallback?.(sessionId);
+        });
+
+        // Session error
+        this.socket.on('session-error', (error: string) => {
+            console.error('❌ Session error:', error);
+            this.onSessionErrorCallback?.(error);
+        });
+
+        // Guest joined (host receives when someone joins)
+        this.socket.on('guest-joined', (data: GuestJoinedData) => {
+            console.log('📱 Guest joined:', data.guestId);
+            this.onGuestJoinedCallback?.(data);
         });
 
         // WebRTC signaling events
-        this.socket.on('offer', (data: { offer: RTCSessionDescriptionInit; from: string }) => {
+        this.socket.on('offer', (data: OfferData) => {
             console.log('📱 Received offer from:', data.from);
-            this.onOfferCallback?.(data.offer, data.from);
+            this.onOfferCallback?.(data);
         });
 
-        this.socket.on('answer', (data: { answer: RTCSessionDescriptionInit }) => {
-            console.log('📱 Received answer');
-            this.onAnswerCallback?.(data.answer);
+        this.socket.on('answer', (data: AnswerData) => {
+            console.log('📱 Received answer from:', data.from);
+            this.onAnswerCallback?.(data);
         });
 
-        this.socket.on('ice-candidate', (data: { candidate: RTCIceCandidateInit }) => {
-            console.log('📱 Received ICE candidate');
-            this.onIceCandidateCallback?.(data.candidate);
+        this.socket.on('ice-candidate', (data: IceCandidateData) => {
+            console.log('📱 Received ICE candidate from:', data.from);
+            this.onIceCandidateCallback?.(data);
         });
 
-        this.socket.on('peer-disconnected', () => {
-            console.log('📱 Peer disconnected');
-            this.onPeerDisconnectedCallback?.();
+        // Screen share events
+        this.socket.on('screen-share-started', () => {
+            console.log('📱 Screen share started');
+            this.onScreenShareStartedCallback?.();
+        });
+
+        this.socket.on('host-stopped-sharing', () => {
+            console.log('📱 Host stopped sharing');
+            this.onHostStoppedSharingCallback?.();
+        });
+
+        // Session lifecycle events
+        this.socket.on('session-ended', () => {
+            console.log('📱 Session ended');
+            this.currentSessionId = null;
+            this.onSessionEndedCallback?.();
+        });
+
+        this.socket.on('host-disconnected', () => {
+            console.log('📱 Host disconnected');
+            this.onHostDisconnectedCallback?.();
+        });
+
+        // Remote control events
+        this.socket.on('remote-control-enabled', () => {
+            console.log('📱 Remote control enabled');
+            this.onRemoteControlEnabledCallback?.();
+        });
+
+        this.socket.on('remote-control-disabled', () => {
+            console.log('📱 Remote control disabled');
+            this.onRemoteControlDisabledCallback?.();
         });
     }
 
-    // Host a new session
-    createSession() {
-        this.socket?.emit('create-session');
+    // ===== Session Management =====
+
+    // Create a new session (as host)
+    createSession(type: SessionType = 'mobile') {
+        console.log('📱 Creating session with type:', type);
+        this.socket?.emit('create-session', { type });
     }
 
-    // Join an existing session
+    // Join an existing session (as guest)
     joinSession(sessionId: string) {
-        this.socket?.emit('join-session', { sessionId });
+        console.log('📱 Joining session:', sessionId);
+        this.socket?.emit('join-session', sessionId);
     }
 
-    // Send WebRTC offer
+    // End the current session
+    endSession(sessionId?: string) {
+        const id = sessionId || this.currentSessionId;
+        if (id) {
+            console.log('📱 Ending session:', id);
+            this.socket?.emit('end-session', id);
+            this.currentSessionId = null;
+        }
+    }
+
+    // Stop sharing (as host)
+    stopSharing(sessionId?: string) {
+        const id = sessionId || this.currentSessionId;
+        if (id) {
+            console.log('📱 Stopping share for session:', id);
+            this.socket?.emit('stop-sharing', { sessionId: id });
+        }
+    }
+
+    // ===== WebRTC Signaling =====
+
     sendOffer(sessionId: string, offer: RTCSessionDescriptionInit) {
+        console.log('📱 Sending offer for session:', sessionId);
         this.socket?.emit('offer', { sessionId, offer });
     }
 
-    // Send WebRTC answer
     sendAnswer(sessionId: string, answer: RTCSessionDescriptionInit) {
+        console.log('📱 Sending answer for session:', sessionId);
         this.socket?.emit('answer', { sessionId, answer });
     }
 
-    // Send ICE candidate
     sendIceCandidate(sessionId: string, candidate: RTCIceCandidateInit) {
         this.socket?.emit('ice-candidate', { sessionId, candidate });
     }
 
-    // Event handlers
-    onSessionCreated(callback: (sessionId: string) => void) {
+    // ===== Remote Control (via Socket.IO for server-based relay) =====
+    // Note: For lowest latency, use WebRTC data channel instead
+
+    enableRemoteControl(sessionId?: string) {
+        const id = sessionId || this.currentSessionId;
+        if (id) {
+            this.socket?.emit('enable-remote-control', { sessionId: id });
+        }
+    }
+
+    disableRemoteControl(sessionId?: string) {
+        const id = sessionId || this.currentSessionId;
+        if (id) {
+            this.socket?.emit('disable-remote-control', { sessionId: id });
+        }
+    }
+
+    // Mouse event via Socket.IO (normalized coordinates 0.0-1.0)
+    sendMouseEvent(
+        sessionId: string,
+        type: 'move' | 'click' | 'wheel',
+        x: number,
+        y: number,
+        options?: { button?: number; deltaX?: number; deltaY?: number }
+    ) {
+        this.socket?.emit('mouse-event', {
+            sessionId,
+            type,
+            x,
+            y,
+            ...options,
+        });
+    }
+
+    // Keyboard event via Socket.IO
+    sendKeyboardEvent(
+        sessionId: string,
+        type: 'down' | 'up',
+        key: string,
+        code: string
+    ) {
+        this.socket?.emit('keyboard-event', {
+            sessionId,
+            type,
+            key,
+            code,
+        });
+    }
+
+    // ===== Event Handlers =====
+
+    onConnected(callback: () => void) {
+        this.onConnectedCallback = callback;
+    }
+
+    onDisconnected(callback: () => void) {
+        this.onDisconnectedCallback = callback;
+    }
+
+    onSessionCreated(callback: (data: SessionCreatedData) => void) {
         this.onSessionCreatedCallback = callback;
     }
 
-    onSessionJoined(callback: (success: boolean) => void) {
+    onSessionJoined(callback: (sessionId: string) => void) {
         this.onSessionJoinedCallback = callback;
     }
 
-    onOffer(callback: (offer: RTCSessionDescriptionInit, from: string) => void) {
+    onSessionError(callback: (error: string) => void) {
+        this.onSessionErrorCallback = callback;
+    }
+
+    onGuestJoined(callback: (data: GuestJoinedData) => void) {
+        this.onGuestJoinedCallback = callback;
+    }
+
+    onOffer(callback: (data: OfferData) => void) {
         this.onOfferCallback = callback;
     }
 
-    onAnswer(callback: (answer: RTCSessionDescriptionInit) => void) {
+    onAnswer(callback: (data: AnswerData) => void) {
         this.onAnswerCallback = callback;
     }
 
-    onIceCandidate(callback: (candidate: RTCIceCandidateInit) => void) {
+    onIceCandidate(callback: (data: IceCandidateData) => void) {
         this.onIceCandidateCallback = callback;
     }
 
-    onPeerDisconnected(callback: () => void) {
-        this.onPeerDisconnectedCallback = callback;
+    onScreenShareStarted(callback: () => void) {
+        this.onScreenShareStartedCallback = callback;
+    }
+
+    onHostStoppedSharing(callback: () => void) {
+        this.onHostStoppedSharingCallback = callback;
+    }
+
+    onSessionEnded(callback: () => void) {
+        this.onSessionEndedCallback = callback;
+    }
+
+    onHostDisconnected(callback: () => void) {
+        this.onHostDisconnectedCallback = callback;
+    }
+
+    onRemoteControlEnabled(callback: () => void) {
+        this.onRemoteControlEnabledCallback = callback;
+    }
+
+    onRemoteControlDisabled(callback: () => void) {
+        this.onRemoteControlDisabledCallback = callback;
+    }
+
+    // ===== Utility =====
+
+    getCurrentSessionId(): string | null {
+        return this.currentSessionId;
     }
 
     disconnect() {
+        if (this.currentSessionId) {
+            this.endSession(this.currentSessionId);
+        }
         this.socket?.disconnect();
         this.socket = null;
+        this.currentSessionId = null;
     }
 
     isConnected(): boolean {
         return this.socket?.connected ?? false;
+    }
+
+    getSocket(): Socket | null {
+        return this.socket;
     }
 }
 

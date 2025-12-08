@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">SuperDesk</string>
+    <string name="accessibility_service_description">SuperDesk Remote Control allows your computer to control this phone when you share your screen. Enable this service to allow taps, swipes, and other gestures from your desktop.</string>
 </resources>

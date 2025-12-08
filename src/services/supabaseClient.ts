@@ -1,22 +1,16 @@
 // Supabase Client Configuration with OTP Auth
 import 'react-native-url-polyfill/auto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, Session, User } from '@supabase/supabase-js';
 
 // Supabase credentials
 const SUPABASE_URL = 'https://srwrsgkfkzstdsiqonzi.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNyd3JzZ2tma3pzdGRzaXFvbnppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyODM2MzUsImV4cCI6MjA3ODg1OTYzNX0.URa75VP24G6anG_9Pyo2PqNrgNZ20DmEalcLAKezkSM';
 
-// In-memory storage for session (persists until app is closed)
-const memoryStorage: { [key: string]: string } = {};
-
-// Create Supabase client
+// Create Supabase client with AsyncStorage for persistent sessions
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
-        storage: {
-            getItem: async (key) => memoryStorage[key] || null,
-            setItem: async (key, value) => { memoryStorage[key] = value; },
-            removeItem: async (key) => { delete memoryStorage[key]; },
-        },
+        storage: AsyncStorage,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
@@ -63,8 +57,6 @@ export const authService = {
     // Sign out
     signOut: async () => {
         const { error } = await supabase.auth.signOut();
-        // Clear all stored data
-        Object.keys(memoryStorage).forEach(key => delete memoryStorage[key]);
         if (error) throw error;
     },
 

@@ -1,9 +1,16 @@
 // Input service for translating touch gestures to mouse/keyboard events
+// Uses WebRTC data channel for lowest latency (P2P) with Socket.IO fallback
 import { webRTCService } from './WebRTCService';
+import { socketService } from './SocketService';
 
 export interface TouchPosition {
     x: number;
     y: number;
+}
+
+export interface NormalizedPosition {
+    x: number; // 0.0 to 1.0
+    y: number; // 0.0 to 1.0
 }
 
 export interface InputEvent {
@@ -13,41 +20,67 @@ export interface InputEvent {
 }
 
 class InputService {
-    private lastPosition: TouchPosition | null = null;
-    private screenWidth: number = 1920;
-    private screenHeight: number = 1080;
+    private lastPosition: NormalizedPosition | null = null;
     private viewWidth: number = 0;
     private viewHeight: number = 0;
+    private sessionId: string | null = null;
+    private preferDataChannel: boolean = true; // Use P2P for lowest latency
 
-    // Set the remote screen dimensions
-    setRemoteScreenSize(width: number, height: number) {
-        this.screenWidth = width;
-        this.screenHeight = height;
-    }
-
-    // Set the local view dimensions
+    // Set the local view dimensions for coordinate normalization
     setViewSize(width: number, height: number) {
         this.viewWidth = width;
         this.viewHeight = height;
     }
 
-    // Convert touch coordinates to remote screen coordinates
-    private translateCoordinates(x: number, y: number): TouchPosition {
-        const scaleX = this.screenWidth / this.viewWidth;
-        const scaleY = this.screenHeight / this.viewHeight;
+    // Set the session ID for Socket.IO fallback
+    setSessionId(sessionId: string) {
+        this.sessionId = sessionId;
+    }
 
+    // Convert touch coordinates to normalized (0.0-1.0) coordinates
+    private normalizeCoordinates(x: number, y: number): NormalizedPosition {
         return {
-            x: Math.round(x * scaleX),
-            y: Math.round(y * scaleY),
+            x: Math.min(1, Math.max(0, x / this.viewWidth)),
+            y: Math.min(1, Math.max(0, y / this.viewHeight)),
         };
     }
 
-    // Handle touch start (mouse down)
+    // Send input event - uses data channel if available, Socket.IO as fallback
+    private sendInput(event: InputEvent) {
+        // Try data channel first (lowest latency - P2P)
+        if (this.preferDataChannel && webRTCService.isDataChannelOpen()) {
+            webRTCService.sendInputEvent(event);
+        } else if (this.sessionId) {
+            // Fallback to Socket.IO
+            if (event.type === 'mouse') {
+                socketService.sendMouseEvent(
+                    this.sessionId,
+                    event.action as 'move' | 'click' | 'wheel',
+                    event.data.x,
+                    event.data.y,
+                    {
+                        button: event.data.button,
+                        deltaX: event.data.deltaX,
+                        deltaY: event.data.deltaY,
+                    }
+                );
+            } else if (event.type === 'keyboard') {
+                socketService.sendKeyboardEvent(
+                    this.sessionId,
+                    event.action === 'press' ? 'down' : 'up',
+                    event.data.key,
+                    event.data.code || event.data.key
+                );
+            }
+        }
+    }
+
+    // Handle touch start (mouse move to position)
     onTouchStart(x: number, y: number) {
-        const pos = this.translateCoordinates(x, y);
+        const pos = this.normalizeCoordinates(x, y);
         this.lastPosition = pos;
 
-        webRTCService.sendInputEvent({
+        this.sendInput({
             type: 'mouse',
             action: 'move',
             data: { x: pos.x, y: pos.y },
@@ -56,110 +89,180 @@ class InputService {
 
     // Handle touch move (mouse move)
     onTouchMove(x: number, y: number) {
-        const pos = this.translateCoordinates(x, y);
+        const pos = this.normalizeCoordinates(x, y);
         this.lastPosition = pos;
 
-        webRTCService.sendInputEvent({
+        this.sendInput({
             type: 'mouse',
             action: 'move',
             data: { x: pos.x, y: pos.y },
         });
     }
 
-    // Handle touch end (mouse click)
+    // Handle touch end (complete action)
     onTouchEnd() {
-        if (this.lastPosition) {
-            webRTCService.sendInputEvent({
-                type: 'mouse',
-                action: 'click',
-                data: {
-                    x: this.lastPosition.x,
-                    y: this.lastPosition.y,
-                    button: 'left',
-                },
-            });
-        }
+        // Touch end doesn't trigger click - tap gesture does
     }
 
     // Handle single tap (left click)
     onTap(x: number, y: number) {
-        const pos = this.translateCoordinates(x, y);
+        const pos = this.normalizeCoordinates(x, y);
 
-        webRTCService.sendInputEvent({
+        this.sendInput({
             type: 'mouse',
             action: 'click',
-            data: { x: pos.x, y: pos.y, button: 'left' },
+            data: { x: pos.x, y: pos.y, button: 0 }, // 0 = left click
         });
     }
 
     // Handle double tap (double click)
     onDoubleTap(x: number, y: number) {
-        const pos = this.translateCoordinates(x, y);
+        const pos = this.normalizeCoordinates(x, y);
 
-        webRTCService.sendInputEvent({
+        // Send two clicks quickly
+        this.sendInput({
             type: 'mouse',
-            action: 'doubleClick',
-            data: { x: pos.x, y: pos.y },
+            action: 'click',
+            data: { x: pos.x, y: pos.y, button: 0 },
         });
+
+        setTimeout(() => {
+            this.sendInput({
+                type: 'mouse',
+                action: 'click',
+                data: { x: pos.x, y: pos.y, button: 0 },
+            });
+        }, 50);
     }
 
     // Handle long press (right click)
     onLongPress(x: number, y: number) {
-        const pos = this.translateCoordinates(x, y);
+        const pos = this.normalizeCoordinates(x, y);
 
-        webRTCService.sendInputEvent({
+        this.sendInput({
             type: 'mouse',
             action: 'click',
-            data: { x: pos.x, y: pos.y, button: 'right' },
+            data: { x: pos.x, y: pos.y, button: 2 }, // 2 = right click
         });
     }
 
     // Handle pinch zoom (scroll)
     onPinch(scale: number, centerX: number, centerY: number) {
-        const pos = this.translateCoordinates(centerX, centerY);
-        const scrollAmount = scale > 1 ? -100 : 100; // Zoom in = scroll up
+        const pos = this.normalizeCoordinates(centerX, centerY);
+        const deltaY = scale > 1 ? -100 : 100; // Pinch out = scroll up
 
-        webRTCService.sendInputEvent({
+        this.sendInput({
             type: 'mouse',
-            action: 'scroll',
-            data: { x: pos.x, y: pos.y, deltaY: scrollAmount },
+            action: 'wheel',
+            data: { x: pos.x, y: pos.y, deltaX: 0, deltaY },
         });
     }
 
     // Handle two-finger pan (scroll)
     onTwoFingerPan(deltaX: number, deltaY: number) {
-        webRTCService.sendInputEvent({
+        const pos = this.lastPosition || { x: 0.5, y: 0.5 };
+
+        this.sendInput({
             type: 'mouse',
-            action: 'scroll',
-            data: { deltaX: -deltaX, deltaY: -deltaY },
+            action: 'wheel',
+            data: {
+                x: pos.x,
+                y: pos.y,
+                deltaX: -deltaX * 2, // Invert and amplify for natural scrolling
+                deltaY: -deltaY * 2,
+            },
         });
     }
 
-    // Send keyboard input
-    sendKeyPress(key: string, modifiers?: { ctrl?: boolean; alt?: boolean; shift?: boolean; meta?: boolean }) {
-        webRTCService.sendInputEvent({
+    // Send keyboard key press
+    sendKeyPress(
+        key: string,
+        modifiers?: { ctrl?: boolean; alt?: boolean; shift?: boolean; meta?: boolean }
+    ) {
+        this.sendInput({
             type: 'keyboard',
             action: 'press',
-            data: { key, ...modifiers },
+            data: { key, code: key, ...modifiers },
         });
     }
 
-    // Send text input
-    sendText(text: string) {
-        webRTCService.sendInputEvent({
+    // Send keyboard key down
+    sendKeyDown(key: string, code?: string) {
+        this.sendInput({
             type: 'keyboard',
-            action: 'type',
-            data: { text },
+            action: 'down',
+            data: { key, code: code || key },
         });
+    }
+
+    // Send keyboard key up
+    sendKeyUp(key: string, code?: string) {
+        this.sendInput({
+            type: 'keyboard',
+            action: 'up',
+            data: { key, code: code || key },
+        });
+    }
+
+    // Send text input (types each character)
+    sendText(text: string) {
+        for (const char of text) {
+            this.sendInput({
+                type: 'keyboard',
+                action: 'press',
+                data: { key: char, code: `Key${char.toUpperCase()}` },
+            });
+        }
     }
 
     // Send special keys
-    sendSpecialKey(key: 'escape' | 'enter' | 'tab' | 'backspace' | 'delete' | 'home' | 'end' | 'pageup' | 'pagedown' | 'up' | 'down' | 'left' | 'right') {
-        webRTCService.sendInputEvent({
+    sendSpecialKey(
+        key:
+            | 'escape'
+            | 'enter'
+            | 'tab'
+            | 'backspace'
+            | 'delete'
+            | 'home'
+            | 'end'
+            | 'pageup'
+            | 'pagedown'
+            | 'up'
+            | 'down'
+            | 'left'
+            | 'right'
+    ) {
+        const keyCodeMap: Record<string, string> = {
+            escape: 'Escape',
+            enter: 'Enter',
+            tab: 'Tab',
+            backspace: 'Backspace',
+            delete: 'Delete',
+            home: 'Home',
+            end: 'End',
+            pageup: 'PageUp',
+            pagedown: 'PageDown',
+            up: 'ArrowUp',
+            down: 'ArrowDown',
+            left: 'ArrowLeft',
+            right: 'ArrowRight',
+        };
+
+        this.sendInput({
             type: 'keyboard',
-            action: 'special',
-            data: { key },
+            action: 'press',
+            data: { key: keyCodeMap[key] || key, code: keyCodeMap[key] || key },
         });
+    }
+
+    // Set preference for data channel vs Socket.IO
+    setPreferDataChannel(prefer: boolean) {
+        this.preferDataChannel = prefer;
+    }
+
+    // Check if input is ready
+    isReady(): boolean {
+        return webRTCService.isDataChannelOpen() || !!this.sessionId;
     }
 }
 

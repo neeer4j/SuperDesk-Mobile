@@ -39,6 +39,8 @@ export type RootStackParamList = {
     };
     Session: {
         role: 'host';
+        sessionId: string;
+        guestId: string;
     };
     Settings: undefined;
     Chat: {
@@ -188,17 +190,22 @@ const Navigation: React.FC = () => {
                         <Stack.Screen name="MainTabs" component={TabNavigator} />
                         <Stack.Screen
                             name="Remote"
-                            component={RemoteScreen}
                             options={{
                                 animation: 'fade',
                                 gestureEnabled: false,
                             }}
-                        />
-                        <Stack.Screen name="Session" component={SessionScreen} />
+                        >
+                            {(props: any) => <RemoteScreen {...props} />}
+                        </Stack.Screen>
+                        <Stack.Screen name="Session">
+                            {(props: any) => <SessionScreen {...props} />}
+                        </Stack.Screen>
                         <Stack.Screen name="Settings">
                             {(props) => <SettingsScreen {...props} onLogout={handleLogout} />}
                         </Stack.Screen>
-                        <Stack.Screen name="Chat" component={ChatScreen} />
+                        <Stack.Screen name="Chat">
+                            {(props: any) => <ChatScreen {...props} />}
+                        </Stack.Screen>
                     </>
                 )}
             </Stack.Navigator>
