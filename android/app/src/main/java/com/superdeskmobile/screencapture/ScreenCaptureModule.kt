@@ -43,7 +43,7 @@ class ScreenCaptureModule(reactContext: ReactApplicationContext) :
      */
     @ReactMethod
     fun requestPermission(promise: Promise) {
-        val activity = currentActivity
+        val activity = reactApplicationContext.currentActivity
         if (activity == null) {
             promise.reject("NO_ACTIVITY", "No activity available")
             return
@@ -123,7 +123,7 @@ class ScreenCaptureModule(reactContext: ReactApplicationContext) :
     }
 
     override fun onActivityResult(
-        activity: Activity?,
+        activity: Activity,
         requestCode: Int,
         resultCode: Int,
         data: Intent?
@@ -142,7 +142,7 @@ class ScreenCaptureModule(reactContext: ReactApplicationContext) :
         }
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         // Not used
     }
 }
