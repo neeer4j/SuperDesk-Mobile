@@ -365,6 +365,42 @@ class WebRTCService {
         console.log('📱 All tracks added to peer connection');
     }
 
+    // Helper to wait for track to be ready (producing frames)
+    private async waitForTrackReady(track: any, timeoutMs: number = 5000): Promise<boolean> {
+        const startTime = Date.now();
+
+        return new Promise((resolve) => {
+            const checkTrack = () => {
+                const elapsed = Date.now() - startTime;
+                const isReady = track.readyState === 'live' && !track.muted;
+
+                console.log(`📱 Track check [${elapsed}ms]: readyState=${track.readyState}, muted=${track.muted}, enabled=${track.enabled}`);
+
+                if (isReady) {
+                    console.log('📱 ✅ Track is ready for streaming!');
+                    resolve(true);
+                } else if (elapsed >= timeoutMs) {
+                    console.warn(`📱 ⚠️ Track readiness timeout after ${timeoutMs}ms`);
+                    // Still resolve true to attempt streaming - sometimes tracks work despite muted state
+                    resolve(true);
+                } else {
+                    // Check again in 100ms
+                    setTimeout(checkTrack, 100);
+                }
+            };
+
+            // Also listen for track events
+            track.onunmute = () => {
+                console.log('📱 Track unmuted event received');
+            };
+            track.onended = () => {
+                console.log('📱 Track ended event received');
+            };
+
+            checkTrack();
+        });
+    }
+
     // Get screen capture stream (mobile hosting)
     async getDisplayMedia(): Promise<MediaStream | null> {
         try {
@@ -381,13 +417,28 @@ class WebRTCService {
             if (stream) {
                 const tracks = stream.getTracks();
                 console.log('📱 getDisplayMedia success! Got', tracks.length, 'tracks');
-                tracks.forEach((track: any) => {
+
+                for (const track of tracks) {
                     // CRITICAL: Ensure track is enabled immediately
                     track.enabled = true;
                     console.log('📱 Track:', track.kind, 'enabled:', track.enabled, 'readyState:', track.readyState, 'muted:', track.muted);
+
                     const settings = track.getSettings?.() || {};
                     console.log('📱 Track settings:', JSON.stringify(settings));
-                });
+
+                    // Wait for the track to actually be ready
+                    if (track.kind === 'video') {
+                        console.log('📱 Waiting for video track to be ready...');
+                        await this.waitForTrackReady(track, 5000);
+
+                        // Additional delay for MediaProjection to stabilize
+                        console.log('📱 Adding stabilization delay...');
+                        await new Promise<void>(r => setTimeout(r, 500));
+
+                        // Log final state
+                        console.log('📱 Final track state: readyState:', track.readyState, 'muted:', track.muted, 'enabled:', track.enabled);
+                    }
+                }
             }
 
             return stream as MediaStream;

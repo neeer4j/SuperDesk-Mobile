@@ -135,21 +135,42 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
             // Get the display media stream via WebRTC (this will prompt for permission)
             // Using ONLY webRTCService.getDisplayMedia() - NOT screenCaptureService
             // to avoid conflicting MediaProjection instances that cause crashes
+            // NOTE: getDisplayMedia now waits for track to be ready internally
             const stream = await webRTCService.getDisplayMedia();
             if (!stream) {
                 setError('Screen capture permission denied or failed');
                 setStatus('error');
                 return;
             }
-            console.log('📱 Got screen stream:', stream.id);
+
+            // Verify we have tracks
+            const tracks = stream.getTracks();
+            console.log('📱 Got screen stream:', stream.id, 'with', tracks.length, 'tracks');
+
+            if (tracks.length === 0) {
+                setError('Screen capture returned no video tracks');
+                setStatus('error');
+                return;
+            }
+
+            // Log track details before adding to peer connection
+            tracks.forEach((track, index) => {
+                console.log(`📱 Track ${index}: kind=${track.kind}, readyState=${track.readyState}, enabled=${track.enabled}, muted=${(track as any).muted}`);
+            });
 
             // Add stream to peer connection
+            console.log('📱 Adding stream to peer connection...');
             webRTCService.addStream(stream);
             setIsCapturing(true);
 
+            // Small additional delay to ensure peer connection is ready
+            console.log('📱 Waiting before creating offer...');
+            await new Promise<void>(r => setTimeout(r, 300));
+
             // Create and send offer to the guest
+            console.log('📱 Creating offer...');
             await webRTCService.createOffer();
-            console.log('📱 Offer created and sent to guest');
+            console.log('📱 ✅ Offer created and sent to guest');
 
         } catch (err: any) {
             console.error('❌ Screen share error:', err);
