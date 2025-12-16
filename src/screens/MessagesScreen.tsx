@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SettingsIcon } from '../components/Icons';
 import { messagesService, Message } from '../services/supabaseClient';
+import { useTheme } from '../context/ThemeContext';
 
 interface MessagesScreenProps {
     navigation: any;
@@ -26,6 +27,7 @@ interface Conversation {
 }
 
 const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
+    const { theme, colors } = useTheme();
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -67,6 +69,14 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
         return date.toLocaleDateString();
     };
 
+    // Dynamic styles based on theme
+    const dynamicStyles = {
+        container: { backgroundColor: colors.background },
+        card: { backgroundColor: colors.card, borderColor: colors.cardBorder },
+        text: { color: colors.text },
+        subText: { color: colors.subText },
+    };
+
     const renderConversation = ({ item }: { item: Conversation }) => {
         const partner = item.lastMessage.sender_id === item.partnerId
             ? item.lastMessage.sender_profile
@@ -74,7 +84,7 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
 
         return (
             <TouchableOpacity
-                style={styles.conversationItem}
+                style={[styles.conversationItem, dynamicStyles.card]}
                 onPress={() => {
                     // Navigate to chat screen (to be implemented)
                     navigation.navigate('Chat', { userId: item.partnerId, username: partner?.username });
@@ -86,18 +96,18 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
                         style={styles.avatar}
                     />
                 ) : (
-                    <View style={styles.avatarPlaceholder}>
-                        <Text style={styles.avatarText}>
+                    <View style={[styles.avatarPlaceholder, { backgroundColor: colors.iconBackground, borderColor: colors.primary }]}>
+                        <Text style={[styles.avatarText, { color: colors.primary }]}>
                             {partner?.username?.charAt(0).toUpperCase() || '?'}
                         </Text>
                     </View>
                 )}
                 <View style={styles.conversationInfo}>
                     <View style={styles.conversationHeader}>
-                        <Text style={styles.conversationName}>
+                        <Text style={[styles.conversationName, dynamicStyles.text]}>
                             {partner?.display_name || partner?.username || 'Unknown'}
                         </Text>
-                        <Text style={styles.timestamp}>
+                        <Text style={[styles.timestamp, dynamicStyles.subText]}>
                             {formatTime(item.lastMessage.created_at)}
                         </Text>
                     </View>
@@ -105,14 +115,15 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
                         <Text
                             style={[
                                 styles.lastMessage,
-                                item.unreadCount > 0 && styles.unreadMessage
+                                dynamicStyles.subText,
+                                item.unreadCount > 0 && [styles.unreadMessage, dynamicStyles.text]
                             ]}
                             numberOfLines={1}
                         >
                             {item.lastMessage.content}
                         </Text>
                         {item.unreadCount > 0 && (
-                            <View style={styles.unreadBadge}>
+                            <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
                                 <Text style={styles.unreadCount}>{item.unreadCount}</Text>
                             </View>
                         )}
@@ -124,24 +135,27 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
 
     if (isLoading) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#8b5cf6" />
+            <View style={[styles.loadingContainer, dynamicStyles.container]}>
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
 
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+        <View style={[styles.container, dynamicStyles.container]}>
+            <StatusBar
+                barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+                backgroundColor={colors.background}
+            />
 
             {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Messages</Text>
+                <Text style={[styles.headerTitle, dynamicStyles.text]}>Messages</Text>
                 <TouchableOpacity
                     style={styles.settingsButton}
                     onPress={() => navigation.navigate('Settings')}
                 >
-                    <SettingsIcon size={24} color="#fff" />
+                    <SettingsIcon size={24} color={colors.primary} />
                 </TouchableOpacity>
             </View>
 
@@ -155,14 +169,14 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
                     <RefreshControl
                         refreshing={isRefreshing}
                         onRefresh={handleRefresh}
-                        tintColor="#8b5cf6"
+                        tintColor={colors.primary}
                     />
                 }
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
                         <Text style={styles.emptyIcon}>💬</Text>
-                        <Text style={styles.emptyTitle}>No Messages Yet</Text>
-                        <Text style={styles.emptyText}>
+                        <Text style={[styles.emptyTitle, dynamicStyles.text]}>No Messages Yet</Text>
+                        <Text style={[styles.emptyText, dynamicStyles.subText]}>
                             Start a conversation with your friends
                         </Text>
                     </View>

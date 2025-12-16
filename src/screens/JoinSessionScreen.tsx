@@ -20,6 +20,7 @@ import { SettingsIcon } from '../components/Icons';
 import { sessionManager, SessionState } from '../services/SessionManager';
 import { webRTCService } from '../services/WebRTCService';
 import { socketService } from '../services/SocketService';
+import { useTheme } from '../context/ThemeContext';
 
 interface JoinSessionScreenProps {
     navigation: any;
@@ -28,6 +29,7 @@ interface JoinSessionScreenProps {
 type JoinStatus = 'idle' | 'connecting' | 'joining' | 'connected' | 'error';
 
 const JoinSessionScreen: React.FC<JoinSessionScreenProps> = ({ navigation }) => {
+    const { theme, colors } = useTheme();
     const [sessionCode, setSessionCode] = useState('');
     const [status, setStatus] = useState<JoinStatus>('idle');
     const [error, setError] = useState<string | null>(null);
@@ -207,20 +209,57 @@ const JoinSessionScreen: React.FC<JoinSessionScreenProps> = ({ navigation }) => 
 
     const isButtonDisabled = sessionCode.length !== 8 || status === 'connecting' || status === 'joining' || status === 'connected';
 
+    // Dynamic styles based on theme
+    const dynamicStyles = {
+        container: {
+            backgroundColor: colors.background,
+        },
+        card: {
+            backgroundColor: colors.card,
+            borderColor: colors.cardBorder,
+            shadowColor: theme === 'light' ? '#000' : 'transparent',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: theme === 'light' ? 0.08 : 0,
+            shadowRadius: 8,
+            elevation: theme === 'light' ? 3 : 0,
+        },
+        connectedCard: {
+            borderColor: colors.success,
+        },
+        text: {
+            color: colors.text,
+        },
+        subText: {
+            color: colors.subText,
+        },
+        infoContainer: {
+            backgroundColor: colors.card,
+            borderColor: colors.cardBorder,
+        },
+        codeInput: {
+            backgroundColor: theme === 'dark' ? '#1e1e2e' : '#F0EDFA',
+            borderColor: theme === 'dark' ? '#3a3a4a' : colors.primary + '40',
+            color: colors.text,
+        },
+    };
+
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+        <View style={[styles.container, dynamicStyles.container]}>
+            <StatusBar
+                barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+                backgroundColor={colors.background}
+            />
 
             {/* Header with Settings */}
             <View style={styles.header}>
                 <View style={styles.headerLeft}>
-                    <Text style={styles.logo}>SuperDesk</Text>
+                    <Text style={[styles.logo, { color: colors.text }]}>SuperDesk</Text>
                 </View>
                 <TouchableOpacity
                     style={styles.settingsButton}
                     onPress={() => navigation.navigate('Settings')}
                 >
-                    <SettingsIcon size={24} color="#8b5cf6" />
+                    <SettingsIcon size={24} color={colors.primary} />
                 </TouchableOpacity>
             </View>
 
@@ -231,21 +270,22 @@ const JoinSessionScreen: React.FC<JoinSessionScreenProps> = ({ navigation }) => 
                 {status !== 'connected' ? (
                     <>
                         {/* Join Session Card */}
-                        <View style={styles.card}>
-                            <Text style={styles.cardTitle}>Join Remote Session</Text>
-                            <Text style={styles.cardDescription}>
+                        <View style={[styles.card, dynamicStyles.card]}>
+                            <Text style={[styles.cardTitle, dynamicStyles.text]}>Join Remote Session</Text>
+                            <Text style={[styles.cardDescription, dynamicStyles.subText]}>
                                 Enter the 8-character session code from the host to connect and view their screen
                             </Text>
 
                             <View style={styles.codeInputContainer}>
-                                <Text style={styles.codeLabel}>SESSION CODE</Text>
+                                <Text style={[styles.codeLabel, { color: colors.primary }]}>SESSION CODE</Text>
                                 <TextInput
                                     style={[
                                         styles.codeInput,
-                                        error && styles.codeInputError,
+                                        dynamicStyles.codeInput,
+                                        error && { borderColor: colors.error },
                                     ]}
                                     placeholder="XXXX-XXXX"
-                                    placeholderTextColor="#444"
+                                    placeholderTextColor={colors.subText}
                                     value={formatDisplayCode(sessionCode)}
                                     onChangeText={handleCodeChange}
                                     maxLength={9} // 8 chars + hyphen
@@ -254,14 +294,14 @@ const JoinSessionScreen: React.FC<JoinSessionScreenProps> = ({ navigation }) => 
                                     keyboardType="default"
                                     editable={status !== 'connecting' && status !== 'joining'}
                                 />
-                                <Text style={styles.codeHint}>
+                                <Text style={[styles.codeHint, dynamicStyles.subText]}>
                                     {sessionCode.length}/8 characters
                                 </Text>
                             </View>
 
                             {error && (
-                                <View style={styles.errorContainer}>
-                                    <Text style={styles.errorText}>⚠️ {error}</Text>
+                                <View style={[styles.errorContainer, { backgroundColor: colors.error + '20' }]}>
+                                    <Text style={[styles.errorText, { color: colors.error }]}>⚠️ {error}</Text>
                                 </View>
                             )}
 
@@ -269,6 +309,7 @@ const JoinSessionScreen: React.FC<JoinSessionScreenProps> = ({ navigation }) => 
                                 style={[
                                     styles.button,
                                     styles.primaryButton,
+                                    { backgroundColor: colors.primary },
                                     isButtonDisabled && styles.buttonDisabled,
                                 ]}
                                 onPress={handleJoinSession}
@@ -288,32 +329,32 @@ const JoinSessionScreen: React.FC<JoinSessionScreenProps> = ({ navigation }) => 
                         </View>
 
                         {/* Info */}
-                        <View style={styles.infoContainer}>
-                            <Text style={styles.infoTitle}>How to connect:</Text>
-                            <Text style={styles.infoText}>1. Ask the host for their 8-character session code</Text>
-                            <Text style={styles.infoText}>2. Enter the code above</Text>
-                            <Text style={styles.infoText}>3. Tap "Join Session" to connect</Text>
-                            <Text style={styles.infoText}>4. Press "View Remote" to see and control their screen</Text>
+                        <View style={[styles.infoContainer, dynamicStyles.infoContainer]}>
+                            <Text style={[styles.infoTitle, { color: colors.primary }]}>How to connect:</Text>
+                            <Text style={[styles.infoText, dynamicStyles.subText]}>1. Ask the host for their 8-character session code</Text>
+                            <Text style={[styles.infoText, dynamicStyles.subText]}>2. Enter the code above</Text>
+                            <Text style={[styles.infoText, dynamicStyles.subText]}>3. Tap "Join Session" to connect</Text>
+                            <Text style={[styles.infoText, dynamicStyles.subText]}>4. Press "View Remote" to see and control their screen</Text>
                         </View>
                     </>
                 ) : (
                     <>
                         {/* Connected Card */}
-                        <View style={[styles.card, styles.connectedCard]}>
-                            <View style={styles.connectedBadge}>
-                                <View style={styles.connectedDot} />
-                                <Text style={styles.connectedBadgeText}>Connected to Session</Text>
+                        <View style={[styles.card, dynamicStyles.card, dynamicStyles.connectedCard]}>
+                            <View style={[styles.connectedBadge, { backgroundColor: colors.success + '20' }]}>
+                                <View style={[styles.connectedDot, { backgroundColor: colors.success }]} />
+                                <Text style={[styles.connectedBadgeText, { color: colors.success }]}>Connected to Session</Text>
                             </View>
 
-                            <Text style={styles.sessionLabel}>SESSION CODE</Text>
-                            <Text style={styles.sessionCodeDisplay}>{formatDisplayCode(sessionCode)}</Text>
-                            <Text style={styles.connectedHint}>
+                            <Text style={[styles.sessionLabel, dynamicStyles.subText]}>SESSION CODE</Text>
+                            <Text style={[styles.sessionCodeDisplay, dynamicStyles.text]}>{formatDisplayCode(sessionCode)}</Text>
+                            <Text style={[styles.connectedHint, dynamicStyles.subText]}>
                                 You're connected! Press "View Remote" to see and control the host's screen.
                             </Text>
 
                             {/* View Remote Button */}
                             <TouchableOpacity
-                                style={[styles.button, styles.viewRemoteButton]}
+                                style={[styles.button, styles.viewRemoteButton, { backgroundColor: colors.success }]}
                                 onPress={handleViewRemote}
                             >
                                 <Text style={styles.viewRemoteIcon}>🖥️</Text>
@@ -323,18 +364,18 @@ const JoinSessionScreen: React.FC<JoinSessionScreenProps> = ({ navigation }) => 
 
                         {/* Disconnect Button */}
                         <TouchableOpacity
-                            style={[styles.button, styles.disconnectButton]}
+                            style={[styles.button, styles.disconnectButton, { borderColor: colors.error, backgroundColor: colors.error + '20' }]}
                             onPress={handleDisconnect}
                         >
-                            <Text style={styles.disconnectButtonText}>Disconnect</Text>
+                            <Text style={[styles.disconnectButtonText, { color: colors.error }]}>Disconnect</Text>
                         </TouchableOpacity>
 
                         {/* Tips */}
-                        <View style={styles.infoContainer}>
-                            <Text style={styles.infoTitle}>💡 Tips:</Text>
-                            <Text style={styles.infoText}>• You can navigate to other tabs while connected</Text>
-                            <Text style={styles.infoText}>• Go to Files tab to transfer files with the host</Text>
-                            <Text style={styles.infoText}>• Return here anytime to view their screen</Text>
+                        <View style={[styles.infoContainer, dynamicStyles.infoContainer]}>
+                            <Text style={[styles.infoTitle, { color: colors.primary }]}>💡 Tips:</Text>
+                            <Text style={[styles.infoText, dynamicStyles.subText]}>• You can navigate to other tabs while connected</Text>
+                            <Text style={[styles.infoText, dynamicStyles.subText]}>• Go to Files tab to transfer files with the host</Text>
+                            <Text style={[styles.infoText, dynamicStyles.subText]}>• Return here anytime to view their screen</Text>
                         </View>
                     </>
                 )}

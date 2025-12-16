@@ -15,12 +15,14 @@ import {
 } from 'react-native';
 import { SettingsIcon } from '../components/Icons';
 import { friendsService, Friend } from '../services/supabaseClient';
+import { useTheme } from '../context/ThemeContext';
 
 interface FriendsScreenProps {
     navigation: any;
 }
 
 const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
+    const { theme, colors } = useTheme();
     const [friends, setFriends] = useState<Friend[]>([]);
     const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -106,99 +108,115 @@ const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
         );
     };
 
+    // Dynamic styles based on theme
+    const dynamicStyles = {
+        container: { backgroundColor: colors.background },
+        card: { backgroundColor: colors.card, borderColor: colors.cardBorder },
+        text: { color: colors.text },
+        subText: { color: colors.subText },
+        input: {
+            backgroundColor: colors.card,
+            borderColor: colors.cardBorder,
+            color: colors.text,
+        },
+    };
+
     const renderFriendItem = ({ item }: { item: Friend }) => (
-        <View style={styles.friendItem}>
+        <View style={[styles.friendItem, dynamicStyles.card]}>
             {item.friend_profile?.avatar_url ? (
                 <Image
                     source={{ uri: item.friend_profile.avatar_url }}
                     style={styles.avatar}
                 />
             ) : (
-                <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarText}>
+                <View style={[styles.avatarPlaceholder, { backgroundColor: colors.iconBackground, borderColor: colors.primary }]}>
+                    <Text style={[styles.avatarText, { color: colors.primary }]}>
                         {item.friend_profile?.username?.charAt(0).toUpperCase() || '?'}
                     </Text>
                 </View>
             )}
             <View style={styles.friendInfo}>
-                <Text style={styles.friendName}>
+                <Text style={[styles.friendName, dynamicStyles.text]}>
                     {item.friend_profile?.display_name || item.friend_profile?.username}
                 </Text>
-                <Text style={styles.friendUsername}>@{item.friend_profile?.username}</Text>
+                <Text style={[styles.friendUsername, dynamicStyles.subText]}>@{item.friend_profile?.username}</Text>
             </View>
             <TouchableOpacity
-                style={styles.removeButton}
+                style={[styles.removeButton, { backgroundColor: colors.error + '20', borderColor: colors.error + '40' }]}
                 onPress={() => handleRemoveFriend(item.id, item.friend_profile?.username || 'this friend')}
             >
-                <Text style={styles.removeButtonText}>Remove</Text>
+                <Text style={[styles.removeButtonText, { color: colors.error }]}>Remove</Text>
             </TouchableOpacity>
         </View>
     );
 
     const renderPendingRequest = ({ item }: { item: Friend }) => (
-        <View style={styles.requestItem}>
+        <View style={[styles.requestItem, dynamicStyles.card, { borderColor: colors.primary + '40' }]}>
             {item.friend_profile?.avatar_url ? (
                 <Image
                     source={{ uri: item.friend_profile.avatar_url }}
                     style={styles.avatar}
                 />
             ) : (
-                <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarText}>
+                <View style={[styles.avatarPlaceholder, { backgroundColor: colors.iconBackground, borderColor: colors.primary }]}>
+                    <Text style={[styles.avatarText, { color: colors.primary }]}>
                         {item.friend_profile?.username?.charAt(0).toUpperCase() || '?'}
                     </Text>
                 </View>
             )}
             <View style={styles.friendInfo}>
-                <Text style={styles.friendName}>
+                <Text style={[styles.friendName, dynamicStyles.text]}>
                     {item.friend_profile?.display_name || item.friend_profile?.username}
                 </Text>
-                <Text style={styles.friendUsername}>@{item.friend_profile?.username}</Text>
+                <Text style={[styles.friendUsername, dynamicStyles.subText]}>@{item.friend_profile?.username}</Text>
             </View>
             <TouchableOpacity
-                style={styles.acceptButton}
+                style={[styles.acceptButton, { backgroundColor: colors.success + '20', borderColor: colors.success + '40' }]}
                 onPress={() => handleAcceptRequest(item.id)}
             >
-                <Text style={styles.acceptButtonText}>Accept</Text>
+                <Text style={[styles.acceptButtonText, { color: colors.success }]}>Accept</Text>
             </TouchableOpacity>
         </View>
     );
 
     if (isLoading) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#8b5cf6" />
+            <View style={[styles.loadingContainer, dynamicStyles.container]}>
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
 
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+        <View style={[styles.container, dynamicStyles.container]}>
+            <StatusBar
+                barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+                backgroundColor={colors.background}
+            />
 
             {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Friends</Text>
+                <Text style={[styles.headerTitle, dynamicStyles.text]}>Friends</Text>
                 <TouchableOpacity
                     style={styles.settingsButton}
                     onPress={() => navigation.navigate('Settings')}
                 >
-                    <SettingsIcon size={24} color="#fff" />
+                    <SettingsIcon size={24} color={colors.primary} />
                 </TouchableOpacity>
             </View>
 
             {/* Add Friend Section */}
             <View style={styles.addFriendSection}>
                 <TextInput
-                    style={styles.searchInput}
+                    style={[styles.searchInput, dynamicStyles.input]}
                     placeholder="Enter username to add friend"
-                    placeholderTextColor="#666"
+                    placeholderTextColor={colors.subText}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     autoCapitalize="none"
                 />
                 <TouchableOpacity
-                    style={styles.addButton}
+                    style={[styles.addButton, { backgroundColor: colors.primary }]}
                     onPress={handleAddFriend}
                     disabled={isAddingFriend}
                 >
@@ -213,7 +231,7 @@ const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
             {/* Pending Requests */}
             {pendingRequests.length > 0 && (
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Pending Requests ({pendingRequests.length})</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.primary }]}>Pending Requests ({pendingRequests.length})</Text>
                     <FlatList
                         data={pendingRequests}
                         renderItem={renderPendingRequest}
@@ -225,7 +243,7 @@ const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
 
             {/* Friends List */}
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>
+                <Text style={[styles.sectionTitle, { color: colors.primary }]}>
                     {friends.length > 0 ? `Friends (${friends.length})` : 'No Friends Yet'}
                 </Text>
                 <FlatList
@@ -236,12 +254,12 @@ const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
                         <RefreshControl
                             refreshing={isRefreshing}
                             onRefresh={handleRefresh}
-                            tintColor="#8b5cf6"
+                            tintColor={colors.primary}
                         />
                     }
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
-                            <Text style={styles.emptyText}>
+                            <Text style={[styles.emptyText, dynamicStyles.subText]}>
                                 Add friends using their username above
                             </Text>
                         </View>

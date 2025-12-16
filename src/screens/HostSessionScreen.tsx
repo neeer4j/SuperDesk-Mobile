@@ -16,6 +16,7 @@ import {
 import { SettingsIcon } from '../components/Icons';
 import { sessionManager, SessionState } from '../services/SessionManager';
 import { webRTCService } from '../services/WebRTCService';
+import { useTheme } from '../context/ThemeContext';
 
 interface HostSessionScreenProps {
     navigation: any;
@@ -24,6 +25,7 @@ interface HostSessionScreenProps {
 type ConnectionStatus = 'disconnected' | 'connecting' | 'session-active' | 'guest-connected';
 
 const HostSessionScreen: React.FC<HostSessionScreenProps> = ({ navigation }) => {
+    const { theme, colors } = useTheme();
     const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
     const [sessionCode, setSessionCode] = useState('');
     const [guestId, setGuestId] = useState<string | null>(null);
@@ -207,35 +209,73 @@ const HostSessionScreen: React.FC<HostSessionScreenProps> = ({ navigation }) => 
 
     const isHosting = connectionStatus === 'session-active' || connectionStatus === 'guest-connected';
 
+    // Dynamic styles based on theme
+    const dynamicStyles = {
+        container: {
+            backgroundColor: colors.background,
+        },
+        card: {
+            backgroundColor: colors.card,
+            borderColor: colors.cardBorder,
+            shadowColor: theme === 'light' ? '#000' : 'transparent',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: theme === 'light' ? 0.08 : 0,
+            shadowRadius: 8,
+            elevation: theme === 'light' ? 3 : 0,
+        },
+        activeCard: {
+            borderColor: colors.success,
+        },
+        cardTitle: {
+            color: colors.text,
+        },
+        cardDescription: {
+            color: colors.subText,
+        },
+        text: {
+            color: colors.text,
+        },
+        subText: {
+            color: colors.subText,
+        },
+        infoContainer: {
+            backgroundColor: colors.card,
+            borderColor: colors.cardBorder,
+        },
+    };
+
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+        <View style={[styles.container, dynamicStyles.container]}>
+            <StatusBar
+                barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+                backgroundColor={colors.background}
+            />
 
             {/* Header with Settings */}
             <View style={styles.header}>
                 <View style={styles.headerLeft}>
-                    <Text style={styles.logo}>SuperDesk</Text>
+                    <Text style={[styles.logo, { color: colors.text }]}>SuperDesk</Text>
                 </View>
                 <TouchableOpacity
                     style={styles.settingsButton}
                     onPress={() => navigation.navigate('Settings')}
                 >
-                    <SettingsIcon size={24} color="#8b5cf6" />
+                    <SettingsIcon size={24} color={colors.primary} />
                 </TouchableOpacity>
             </View>
 
             {!isHosting ? (
                 <>
                     {/* Host Session Card */}
-                    <View style={styles.card}>
-                        <Text style={styles.cardTitle}>Host Session</Text>
-                        <Text style={styles.cardDescription}>
+                    <View style={[styles.card, dynamicStyles.card]}>
+                        <Text style={[styles.cardTitle, dynamicStyles.cardTitle]}>Host Session</Text>
+                        <Text style={[styles.cardDescription, dynamicStyles.cardDescription]}>
                             Share your phone screen with a PC. Generate a session code that others can use to connect.
                         </Text>
 
                         {error && (
-                            <View style={styles.errorContainer}>
-                                <Text style={styles.errorText}>⚠️ {error}</Text>
+                            <View style={[styles.errorContainer, { backgroundColor: colors.error + '20' }]}>
+                                <Text style={[styles.errorText, { color: colors.error }]}>⚠️ {error}</Text>
                             </View>
                         )}
 
@@ -243,6 +283,7 @@ const HostSessionScreen: React.FC<HostSessionScreenProps> = ({ navigation }) => 
                             style={[
                                 styles.button,
                                 styles.primaryButton,
+                                { backgroundColor: colors.primary },
                                 connectionStatus === 'connecting' && styles.buttonDisabled,
                             ]}
                             onPress={handleStartHosting}
@@ -262,31 +303,31 @@ const HostSessionScreen: React.FC<HostSessionScreenProps> = ({ navigation }) => 
                     </View>
 
                     {/* Info */}
-                    <View style={styles.infoContainer}>
-                        <Text style={styles.infoTitle}>How it works:</Text>
-                        <Text style={styles.infoText}>1. Tap "Start Hosting" to generate a session code</Text>
-                        <Text style={styles.infoText}>2. Share the code with someone you trust</Text>
-                        <Text style={styles.infoText}>3. Press "Share Screen" when they connect</Text>
-                        <Text style={styles.infoText}>4. You can navigate to other tabs while session is active</Text>
+                    <View style={[styles.infoContainer, dynamicStyles.infoContainer]}>
+                        <Text style={[styles.infoTitle, { color: colors.primary }]}>How it works:</Text>
+                        <Text style={[styles.infoText, dynamicStyles.subText]}>1. Tap "Start Hosting" to generate a session code</Text>
+                        <Text style={[styles.infoText, dynamicStyles.subText]}>2. Share the code with someone you trust</Text>
+                        <Text style={[styles.infoText, dynamicStyles.subText]}>3. Press "Share Screen" when they connect</Text>
+                        <Text style={[styles.infoText, dynamicStyles.subText]}>4. You can navigate to other tabs while session is active</Text>
                     </View>
                 </>
             ) : (
                 <>
                     {/* Session Active Card */}
-                    <View style={[styles.card, styles.activeCard]}>
-                        <View style={styles.statusBadge}>
+                    <View style={[styles.card, dynamicStyles.card, dynamicStyles.activeCard]}>
+                        <View style={[styles.statusBadge, { backgroundColor: colors.success + '20' }]}>
                             <View style={[
                                 styles.statusDot,
-                                { backgroundColor: connectionStatus === 'guest-connected' ? '#22c55e' : '#10b981' }
+                                { backgroundColor: connectionStatus === 'guest-connected' ? '#22c55e' : colors.success }
                             ]} />
-                            <Text style={styles.statusBadgeText}>
+                            <Text style={[styles.statusBadgeText, { color: colors.success }]}>
                                 {connectionStatus === 'guest-connected' ? 'Guest Connected' : 'Session Active'}
                             </Text>
                         </View>
 
-                        <Text style={styles.sessionLabel}>Your Session Code</Text>
-                        <Text style={styles.sessionCode}>{formatCode(sessionCode)}</Text>
-                        <Text style={styles.sessionHint}>
+                        <Text style={[styles.sessionLabel, dynamicStyles.subText]}>Your Session Code</Text>
+                        <Text style={[styles.sessionCode, dynamicStyles.text]}>{formatCode(sessionCode)}</Text>
+                        <Text style={[styles.sessionHint, dynamicStyles.subText]}>
                             {connectionStatus === 'guest-connected'
                                 ? 'Press "Share Screen" to start sharing'
                                 : 'Share this code with the person who will connect'}
@@ -295,23 +336,23 @@ const HostSessionScreen: React.FC<HostSessionScreenProps> = ({ navigation }) => 
                         {/* Action Buttons */}
                         <View style={styles.actionButtons}>
                             <TouchableOpacity
-                                style={[styles.actionButton, styles.refreshButton]}
+                                style={[styles.actionButton, styles.refreshButton, { borderColor: '#f59e0b' }]}
                                 onPress={handleRefreshCode}
                             >
                                 <Text style={styles.actionButtonIcon}>🔄</Text>
-                                <Text style={styles.actionButtonText}>New Code</Text>
+                                <Text style={[styles.actionButtonText, { color: colors.text }]}>New Code</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={[styles.actionButton, styles.copyButton]}
+                                style={[styles.actionButton, { backgroundColor: colors.border }]}
                                 onPress={handleCopyCode}
                             >
                                 <Text style={styles.actionButtonIcon}>📋</Text>
-                                <Text style={styles.actionButtonText}>Copy</Text>
+                                <Text style={[styles.actionButtonText, { color: colors.text }]}>Copy</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={[styles.actionButton, styles.shareCodeButton]}
+                                style={[styles.actionButton, { backgroundColor: colors.primary }]}
                                 onPress={handleShareCode}
                             >
                                 <Text style={styles.actionButtonIcon}>📤</Text>
@@ -335,25 +376,25 @@ const HostSessionScreen: React.FC<HostSessionScreenProps> = ({ navigation }) => 
 
                     {/* Stop Button */}
                     <TouchableOpacity
-                        style={[styles.button, styles.stopButton]}
+                        style={[styles.button, styles.stopButton, { borderColor: colors.error, backgroundColor: colors.error + '20' }]}
                         onPress={handleStopHosting}
                     >
-                        <Text style={styles.stopButtonText}>End Session</Text>
+                        <Text style={[styles.stopButtonText, { color: colors.error }]}>End Session</Text>
                     </TouchableOpacity>
 
                     {/* Status */}
                     <View style={styles.waitingContainer}>
                         {connectionStatus === 'session-active' && (
-                            <ActivityIndicator size="small" color="#8b5cf6" style={{ marginBottom: 10 }} />
+                            <ActivityIndicator size="small" color={colors.primary} style={{ marginBottom: 10 }} />
                         )}
-                        <Text style={styles.waitingText}>{getStatusText()}</Text>
+                        <Text style={[styles.waitingText, dynamicStyles.subText]}>{getStatusText()}</Text>
                         {connectionStatus === 'session-active' && (
-                            <Text style={styles.waitingHint}>
+                            <Text style={[styles.waitingHint, dynamicStyles.subText]}>
                                 The other person should enter this code in "Join Session"
                             </Text>
                         )}
                         {connectionStatus === 'guest-connected' && !isScreenSharing && (
-                            <Text style={styles.waitingHint}>
+                            <Text style={[styles.waitingHint, dynamicStyles.subText]}>
                                 Tap "Share Screen" above to start sharing your screen
                             </Text>
                         )}

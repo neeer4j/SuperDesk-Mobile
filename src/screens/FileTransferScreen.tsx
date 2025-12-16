@@ -18,12 +18,14 @@ import { pick, types } from '@react-native-documents/picker';
 import { SettingsIcon, FileTransferIcon } from '../components/Icons';
 import { fileTransferService, TransferProgress, FileToSend } from '../services/FileTransferService';
 import { sessionManager, SessionState } from '../services/SessionManager';
+import { useTheme } from '../context/ThemeContext';
 
 interface FileTransferScreenProps {
     navigation: any;
 }
 
 const FileTransferScreen: React.FC<FileTransferScreenProps> = ({ navigation }) => {
+    const { theme, colors } = useTheme();
     const [transfers, setTransfers] = useState<TransferProgress[]>([]);
     const [isChannelReady, setIsChannelReady] = useState(false);
     const [isSending, setIsSending] = useState(false);
@@ -313,32 +315,43 @@ const FileTransferScreen: React.FC<FileTransferScreenProps> = ({ navigation }) =
 
     const connectionInfo = getConnectionState();
 
+    // Dynamic styles based on theme
+    const dynamicStyles = {
+        container: { backgroundColor: colors.background },
+        card: { backgroundColor: colors.card, borderColor: colors.cardBorder },
+        text: { color: colors.text },
+        subText: { color: colors.subText },
+    };
+
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+        <View style={[styles.container, dynamicStyles.container]}>
+            <StatusBar
+                barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+                backgroundColor={colors.background}
+            />
 
             {/* Header with Settings */}
             <View style={styles.header}>
                 <View style={styles.headerLeft}>
-                    <Text style={styles.logo}>File Transfer</Text>
+                    <Text style={[styles.logo, dynamicStyles.text]}>File Transfer</Text>
                 </View>
                 <View style={styles.connectionStatus}>
                     <View style={[styles.connectionDot, { backgroundColor: connectionInfo.color }]} />
-                    <Text style={styles.connectionText}>{connectionInfo.text}</Text>
+                    <Text style={[styles.connectionText, dynamicStyles.subText]}>{connectionInfo.text}</Text>
                 </View>
                 <TouchableOpacity
                     style={styles.settingsButton}
                     onPress={() => navigation.navigate('Settings')}
                 >
-                    <SettingsIcon size={24} color="#8b5cf6" />
+                    <SettingsIcon size={24} color={colors.primary} />
                 </TouchableOpacity>
             </View>
 
             {/* Active Session Info - Compact */}
             {sessionState.isActive && (
-                <View style={styles.sessionBar}>
+                <View style={[styles.sessionBar, dynamicStyles.card, { borderColor: colors.success + '40' }]}>
                     <View style={styles.sessionInfo}>
-                        <Text style={styles.sessionLabel}>
+                        <Text style={[styles.sessionLabel, dynamicStyles.text]}>
                             {sessionState.role === 'host' ? '📱 Hosting' : '👁️ Joined'}: {formatCode(sessionState.sessionId)}
                         </Text>
                         {sessionState.peerId && (
@@ -356,6 +369,7 @@ const FileTransferScreen: React.FC<FileTransferScreenProps> = ({ navigation }) =
                 <TouchableOpacity
                     style={[
                         styles.actionButton,
+                        dynamicStyles.card,
                         !isChannelReady && styles.actionButtonNotConnected,
                         isSending && styles.actionButtonDisabled
                     ]}
@@ -364,69 +378,70 @@ const FileTransferScreen: React.FC<FileTransferScreenProps> = ({ navigation }) =
                 >
                     <View style={[
                         styles.actionIcon,
+                        { backgroundColor: theme === 'dark' ? '#1e1e2e' : colors.iconBackground },
                         !isChannelReady && styles.actionIconNotConnected
                     ]}>
                         {isSending ? (
-                            <ActivityIndicator size="small" color="#8b5cf6" />
+                            <ActivityIndicator size="small" color={colors.primary} />
                         ) : (
                             <Text style={[styles.actionEmoji, !isChannelReady && styles.actionEmojiDimmed]}>📤</Text>
                         )}
                     </View>
-                    <Text style={[styles.actionText, !isChannelReady && styles.actionTextDimmed]}>
+                    <Text style={[styles.actionText, dynamicStyles.text, !isChannelReady && dynamicStyles.subText]}>
                         {isSending ? 'Sending...' : 'Send File'}
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={styles.actionButton}
+                    style={[styles.actionButton, dynamicStyles.card]}
                     onPress={handleReceiveFiles}
                 >
-                    <View style={styles.actionIcon}>
+                    <View style={[styles.actionIcon, { backgroundColor: theme === 'dark' ? '#1e1e2e' : colors.iconBackground }]}>
                         <Text style={styles.actionEmoji}>📥</Text>
                         {/* Notification Badge */}
                         {incomingCount > 0 && (
-                            <View style={styles.badge}>
+                            <View style={[styles.badge, { backgroundColor: colors.error }]}>
                                 <Text style={styles.badgeText}>{incomingCount}</Text>
                             </View>
                         )}
                     </View>
-                    <Text style={styles.actionText}>Incoming Files</Text>
+                    <Text style={[styles.actionText, dynamicStyles.text]}>Incoming Files</Text>
                 </TouchableOpacity>
             </View>
 
             {/* Instructions Section - Only show when not connected */}
             {!sessionState.isActive && (
-                <View style={styles.instructionsContainer}>
-                    <Text style={styles.instructionsTitle}>How to Transfer Files</Text>
+                <View style={[styles.instructionsContainer, dynamicStyles.card]}>
+                    <Text style={[styles.instructionsTitle, dynamicStyles.text]}>How to Transfer Files</Text>
                     <View style={styles.instructionStep}>
-                        <Text style={styles.stepNumber}>1</Text>
-                        <Text style={styles.stepText}>Go to <Text style={styles.stepHighlight}>Host</Text> or <Text style={styles.stepHighlight}>Join</Text> tab</Text>
+                        <Text style={[styles.stepNumber, { backgroundColor: colors.primary }]}>1</Text>
+                        <Text style={[styles.stepText, dynamicStyles.subText]}>Go to <Text style={[styles.stepHighlight, { color: colors.primary }]}>Host</Text> or <Text style={[styles.stepHighlight, { color: colors.primary }]}>Join</Text> tab</Text>
                     </View>
                     <View style={styles.instructionStep}>
-                        <Text style={styles.stepNumber}>2</Text>
-                        <Text style={styles.stepText}>Start or join a session with another device</Text>
+                        <Text style={[styles.stepNumber, { backgroundColor: colors.primary }]}>2</Text>
+                        <Text style={[styles.stepText, dynamicStyles.subText]}>Start or join a session with another device</Text>
                     </View>
                     <View style={styles.instructionStep}>
-                        <Text style={styles.stepNumber}>3</Text>
-                        <Text style={styles.stepText}>Start screen sharing to establish connection</Text>
+                        <Text style={[styles.stepNumber, { backgroundColor: colors.primary }]}>3</Text>
+                        <Text style={[styles.stepText, dynamicStyles.subText]}>Start screen sharing to establish connection</Text>
                     </View>
                     <View style={styles.instructionStep}>
-                        <Text style={styles.stepNumber}>4</Text>
-                        <Text style={styles.stepText}>Return here to send/receive files</Text>
+                        <Text style={[styles.stepNumber, { backgroundColor: colors.primary }]}>4</Text>
+                        <Text style={[styles.stepText, dynamicStyles.subText]}>Return here to send/receive files</Text>
                     </View>
                 </View>
             )}
 
             {/* Ready indicator */}
             {isChannelReady && (
-                <View style={styles.readyBadge}>
-                    <Text style={styles.readyBadgeText}>✓ Connection ready • Send or receive files now</Text>
+                <View style={[styles.readyBadge, { backgroundColor: colors.success + '20' }]}>
+                    <Text style={[styles.readyBadgeText, { color: colors.success }]}>✓ Connection ready • Send or receive files now</Text>
                 </View>
             )}
 
             {/* Transfer History */}
-            <View style={styles.historyContainer}>
-                <Text style={styles.historyTitle}>Transfer History</Text>
+            <View style={[styles.historyContainer, dynamicStyles.card]}>
+                <Text style={[styles.historyTitle, dynamicStyles.text]}>Transfer History</Text>
 
                 {transfers.length === 0 ? (
                     <View style={styles.emptyState}>

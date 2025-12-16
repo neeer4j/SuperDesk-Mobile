@@ -14,7 +14,8 @@ import {
     TextInput,
 } from 'react-native';
 import { BackIcon } from '../components/Icons';
-import { authService, supabase } from '../services/supabaseClient';
+import { authService } from '../services/supabaseClient';
+import { useTheme } from '../context/ThemeContext';
 
 interface SettingsScreenProps {
     navigation: any;
@@ -28,8 +29,8 @@ interface UserProfile {
 }
 
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout }) => {
+    const { theme, colors, toggleTheme } = useTheme();
     const [settings, setSettings] = useState({
-        darkMode: true,
         notifications: true,
         soundEffects: true,
         startOnBoot: false,
@@ -112,18 +113,18 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
         value: boolean;
         onToggle: () => void;
     }) => (
-        <View style={styles.settingRow}>
-            <View style={styles.settingIcon}>
+        <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
+            <View style={[styles.settingIcon, { backgroundColor: colors.iconBackground }]}>
                 <Text style={styles.iconText}>{icon}</Text>
             </View>
             <View style={styles.settingInfo}>
-                <Text style={styles.settingTitle}>{title}</Text>
-                <Text style={styles.settingSubtitle}>{subtitle}</Text>
+                <Text style={[styles.settingTitle, { color: colors.text }]}>{title}</Text>
+                <Text style={[styles.settingSubtitle, { color: colors.subText }]}>{subtitle}</Text>
             </View>
             <Switch
                 value={value}
                 onValueChange={onToggle}
-                trackColor={{ false: '#333', true: '#10b981' }}
+                trackColor={{ false: '#333', true: colors.success }}
                 thumbColor={'#fff'}
             />
         </View>
@@ -140,40 +141,46 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
         subtitle: string;
         value: string;
     }) => (
-        <View style={styles.settingRow}>
-            <View style={styles.settingIcon}>
+        <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
+            <View style={[styles.settingIcon, { backgroundColor: colors.iconBackground }]}>
                 <Text style={styles.iconText}>{icon}</Text>
             </View>
             <View style={styles.settingInfo}>
-                <Text style={styles.settingTitle}>{title}</Text>
-                <Text style={styles.settingSubtitle}>{subtitle}</Text>
+                <Text style={[styles.settingTitle, { color: colors.text }]}>{title}</Text>
+                <Text style={[styles.settingSubtitle, { color: colors.subText }]}>{subtitle}</Text>
             </View>
-            <View style={styles.dropdown}>
-                <Text style={styles.dropdownText}>{value}</Text>
+            <View style={[styles.dropdown, { backgroundColor: colors.border }]}>
+                <Text style={[styles.dropdownText, { color: colors.text }]}>{value}</Text>
                 <Text style={styles.dropdownArrow}>▾</Text>
             </View>
         </View>
     );
 
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <StatusBar
+                barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+                backgroundColor={colors.background}
+            />
 
             <View style={styles.header}>
                 <TouchableOpacity
                     style={styles.backButton}
                     onPress={() => navigation.goBack()}
                 >
-                    <BackIcon size={24} color="#fff" />
+                    <BackIcon size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Settings</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
                 <View style={styles.headerRight} />
             </View>
 
             <ScrollView style={styles.scrollView}>
-                <Text style={styles.sectionTitle}>ACCOUNT</Text>
+                <Text style={[styles.sectionTitle, { color: colors.primary }]}>ACCOUNT</Text>
                 <TouchableOpacity
-                    style={styles.accountCard}
+                    style={[styles.accountCard, {
+                        backgroundColor: colors.card,
+                        borderColor: colors.cardBorder
+                    }]}
                     onPress={() => setShowEditProfile(true)}
                 >
                     {userProfile?.avatar_url ? (
@@ -182,32 +189,32 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
                             style={styles.accountAvatar}
                         />
                     ) : (
-                        <View style={styles.accountAvatarPlaceholder}>
-                            <Text style={styles.accountAvatarText}>
+                        <View style={[styles.accountAvatarPlaceholder, { backgroundColor: colors.border }]}>
+                            <Text style={[styles.accountAvatarText, { color: colors.text }]}>
                                 {userProfile?.username?.charAt(0).toUpperCase() || '?'}
                             </Text>
                         </View>
                     )}
                     <View style={styles.accountInfo}>
-                        <Text style={styles.accountEmail}>{userProfile?.email}</Text>
+                        <Text style={[styles.accountEmail, { color: colors.text }]}>{userProfile?.email}</Text>
                         <Text style={styles.accountUsername}>@{userProfile?.username}</Text>
                     </View>
-                    <Text style={styles.chevron}>›</Text>
+                    <Text style={[styles.chevron, { color: colors.subText }]}>›</Text>
                 </TouchableOpacity>
 
-                <Text style={styles.sectionTitle}>APPEARANCE</Text>
-                <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.primary }]}>APPEARANCE</Text>
+                <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
                     <SettingToggle
                         icon="🌙"
                         title="Dark Mode"
                         subtitle="Switch to dark theme"
-                        value={settings.darkMode}
-                        onToggle={() => handleToggle('darkMode')}
+                        value={theme === 'dark'}
+                        onToggle={toggleTheme}
                     />
                 </View>
 
-                <Text style={styles.sectionTitle}>PREFERENCES</Text>
-                <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.primary }]}>PREFERENCES</Text>
+                <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
                     <SettingToggle
                         icon="🔔"
                         title="Notifications"
@@ -231,8 +238,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
                     />
                 </View>
 
-                <Text style={styles.sectionTitle}>CONNECTION</Text>
-                <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.primary }]}>CONNECTION</Text>
+                <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
                     <SettingDropdown
                         icon="📺"
                         title="Video Quality"
@@ -248,12 +255,15 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
                     />
                 </View>
 
-                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                    <Text style={styles.logoutText}>Logout</Text>
+                <TouchableOpacity
+                    style={[styles.logoutButton, { borderColor: colors.error + '40', backgroundColor: colors.error + '20' }]}
+                    onPress={handleLogout}
+                >
+                    <Text style={[styles.logoutText, { color: colors.error }]}>Logout</Text>
                 </TouchableOpacity>
 
                 <View style={styles.footer}>
-                    <Text style={styles.footerText}>SuperDesk Mobile v1.0.0</Text>
+                    <Text style={[styles.footerText, { color: colors.subText }]}>SuperDesk Mobile v1.0.0</Text>
                 </View>
             </ScrollView>
 
@@ -264,11 +274,11 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
                 onRequestClose={() => setShowEditProfile(false)}
             >
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Edit Profile</Text>
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Profile</Text>
                             <TouchableOpacity onPress={() => setShowEditProfile(false)}>
-                                <Text style={styles.modalClose}>✕</Text>
+                                <Text style={[styles.modalClose, { color: colors.subText }]}>✕</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -279,49 +289,49 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
                                     style={styles.modalAvatar}
                                 />
                             ) : (
-                                <View style={styles.modalAvatarPlaceholder}>
-                                    <Text style={styles.modalAvatarText}>
+                                <View style={[styles.modalAvatarPlaceholder, { backgroundColor: colors.border }]}>
+                                    <Text style={[styles.modalAvatarText, { color: colors.text }]}>
                                         {userProfile?.username?.charAt(0).toUpperCase() || '?'}
                                     </Text>
                                 </View>
                             )}
-                            <TouchableOpacity style={styles.changePhotoButton}>
-                                <Text style={styles.changePhotoText}>📷 Change Photo</Text>
+                            <TouchableOpacity style={[styles.changePhotoButton, { backgroundColor: colors.border }]}>
+                                <Text style={[styles.changePhotoText, { color: colors.text }]}>📷 Change Photo</Text>
                             </TouchableOpacity>
                         </View>
 
                         <View style={styles.modalField}>
-                            <Text style={styles.modalLabel}>EMAIL</Text>
-                            <View style={styles.modalInputDisabled}>
-                                <Text style={styles.modalInputText}>{userProfile?.email}</Text>
+                            <Text style={[styles.modalLabel]}>EMAIL</Text>
+                            <View style={[styles.modalInputDisabled, { backgroundColor: colors.border }]}>
+                                <Text style={[styles.modalInputText, { color: colors.subText }]}>{userProfile?.email}</Text>
                             </View>
-                            <Text style={styles.modalHint}>Your email cannot be changed</Text>
+                            <Text style={[styles.modalHint, { color: colors.subText }]}>Your email cannot be changed</Text>
                         </View>
 
                         <View style={styles.modalField}>
-                            <Text style={styles.modalLabel}>USERNAME</Text>
+                            <Text style={[styles.modalLabel]}>USERNAME</Text>
                             <TextInput
-                                style={styles.modalInput}
+                                style={[styles.modalInput, { backgroundColor: colors.border, color: colors.text }]}
                                 value={editUsername}
                                 onChangeText={setEditUsername}
                                 placeholder="@username"
-                                placeholderTextColor="#666"
+                                placeholderTextColor={colors.subText}
                             />
-                            <Text style={styles.modalHint}>Letters, numbers, underscores and periods. 3-30 characters.</Text>
+                            <Text style={[styles.modalHint, { color: colors.subText }]}>Letters, numbers, underscores and periods. 3-30 characters.</Text>
                         </View>
 
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
-                                style={styles.modalCancelButton}
+                                style={[styles.modalCancelButton, { backgroundColor: colors.border }]}
                                 onPress={() => setShowEditProfile(false)}
                             >
-                                <Text style={styles.modalCancelText}>Cancel</Text>
+                                <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={styles.modalSaveButton}
+                                style={[styles.modalSaveButton, { backgroundColor: colors.primary }]}
                                 onPress={handleSaveProfile}
                             >
-                                <Text style={styles.modalSaveText}>Save</Text>
+                                <Text style={[styles.modalSaveText, { color: '#ffffff' }]}>Save</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -334,7 +344,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#0a0a0f',
     },
     header: {
         flexDirection: 'row',
@@ -350,7 +359,6 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 20,
         fontWeight: '600',
-        color: '#fff',
     },
     headerRight: {
         width: 40,
@@ -362,19 +370,16 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 12,
         fontWeight: '600',
-        color: '#8b5cf6',
         marginTop: 24,
         marginBottom: 12,
         letterSpacing: 1,
     },
     accountCard: {
-        backgroundColor: '#16161e',
         borderRadius: 12,
         padding: 16,
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#2a2a3a',
     },
     accountAvatar: {
         width: 48,
@@ -385,14 +390,12 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: '#fff',
         justifyContent: 'center',
         alignItems: 'center',
     },
     accountAvatarText: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#0a0a0f',
     },
     accountInfo: {
         marginLeft: 12,
@@ -401,7 +404,6 @@ const styles = StyleSheet.create({
     accountEmail: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#fff',
     },
     accountUsername: {
         fontSize: 14,
@@ -410,27 +412,22 @@ const styles = StyleSheet.create({
     },
     chevron: {
         fontSize: 24,
-        color: '#666',
     },
     section: {
-        backgroundColor: '#16161e',
         borderRadius: 12,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: '#2a2a3a',
     },
     settingRow: {
         flexDirection: 'row',
         alignItems: 'center',
         padding: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#2a2a3a',
     },
     settingIcon: {
         width: 40,
         height: 40,
         borderRadius: 10,
-        backgroundColor: '#8b5cf620',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -444,39 +441,32 @@ const styles = StyleSheet.create({
     settingTitle: {
         fontSize: 16,
         fontWeight: '500',
-        color: '#fff',
     },
     settingSubtitle: {
         fontSize: 13,
-        color: '#666',
         marginTop: 2,
     },
     dropdown: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#2a2a3a',
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 8,
     },
     dropdownText: {
-        color: '#fff',
         marginRight: 8,
     },
     dropdownArrow: {
         color: '#666',
     },
     logoutButton: {
-        backgroundColor: '#ef444420',
         borderRadius: 12,
         padding: 16,
         alignItems: 'center',
         marginTop: 24,
         borderWidth: 1,
-        borderColor: '#ef444440',
     },
     logoutText: {
-        color: '#ef4444',
         fontSize: 16,
         fontWeight: '600',
     },
@@ -486,7 +476,6 @@ const styles = StyleSheet.create({
     },
     footerText: {
         fontSize: 14,
-        color: '#666',
     },
     modalOverlay: {
         flex: 1,
@@ -496,13 +485,11 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     modalContent: {
-        backgroundColor: '#16161e',
         borderRadius: 16,
         padding: 24,
         width: '100%',
         maxWidth: 400,
         borderWidth: 1,
-        borderColor: '#3a3a4a',
     },
     modalHeader: {
         flexDirection: 'row',
@@ -513,11 +500,9 @@ const styles = StyleSheet.create({
     modalTitle: {
         fontSize: 20,
         fontWeight: '600',
-        color: '#fff',
     },
     modalClose: {
         fontSize: 20,
-        color: '#666',
         padding: 8,
     },
     modalAvatarContainer: {
@@ -533,24 +518,20 @@ const styles = StyleSheet.create({
         width: 100,
         height: 100,
         borderRadius: 50,
-        backgroundColor: '#fff',
         justifyContent: 'center',
         alignItems: 'center',
     },
     modalAvatarText: {
         fontSize: 40,
         fontWeight: 'bold',
-        color: '#0a0a0f',
     },
     changePhotoButton: {
-        backgroundColor: '#2a2a3a',
         paddingHorizontal: 16,
         paddingVertical: 10,
         borderRadius: 8,
         marginTop: 16,
     },
     changePhotoText: {
-        color: '#fff',
         fontSize: 14,
     },
     modalField: {
@@ -564,24 +545,19 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
     },
     modalInputDisabled: {
-        backgroundColor: '#2a2a3a',
         borderRadius: 8,
         padding: 14,
     },
     modalInputText: {
-        color: '#888',
         fontSize: 16,
     },
     modalInput: {
-        backgroundColor: '#2a2a3a',
         borderRadius: 8,
         padding: 14,
-        color: '#fff',
         fontSize: 16,
     },
     modalHint: {
         fontSize: 12,
-        color: '#666',
         marginTop: 6,
     },
     modalButtons: {
@@ -590,26 +566,22 @@ const styles = StyleSheet.create({
     },
     modalCancelButton: {
         flex: 1,
-        backgroundColor: '#2a2a3a',
         padding: 14,
         borderRadius: 8,
         alignItems: 'center',
         marginRight: 8,
     },
     modalCancelText: {
-        color: '#fff',
         fontWeight: '600',
     },
     modalSaveButton: {
         flex: 1,
-        backgroundColor: '#fff',
         padding: 14,
         borderRadius: 8,
         alignItems: 'center',
         marginLeft: 8,
     },
     modalSaveText: {
-        color: '#8b5cf6',
         fontWeight: '600',
     },
 });

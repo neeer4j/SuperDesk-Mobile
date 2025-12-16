@@ -1,6 +1,6 @@
 // Navigation setup for SuperDesk Mobile with Bottom Tabs and OTP Auth
 import React, { useState, useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
@@ -28,6 +28,7 @@ import {
 
 // Auth
 import { authService } from '../services/supabaseClient';
+import { useTheme } from '../context/ThemeContext';
 
 // Type definitions
 export type RootStackParamList = {
@@ -62,15 +63,22 @@ const Tab = createBottomTabNavigator<TabParamList>();
 
 // Bottom Tab Navigator
 const TabNavigator: React.FC = () => {
+    const { colors } = useTheme();
     return (
         <Tab.Navigator
             screenOptions={{
                 headerShown: false,
-                tabBarStyle: styles.tabBar,
-                tabBarActiveTintColor: '#8b5cf6',
-                tabBarInactiveTintColor: '#666',
+                tabBarStyle: [styles.tabBar, {
+                    backgroundColor: colors.card,
+                    borderTopColor: colors.border
+                }],
+                tabBarActiveTintColor: colors.primary,
+                tabBarInactiveTintColor: colors.subText,
                 tabBarShowLabel: true,
                 tabBarLabelStyle: styles.tabLabel,
+                tabBarBackground: () => (
+                    <View style={{ flex: 1, backgroundColor: colors.card }} />
+                ),
             }}
         >
             <Tab.Screen
@@ -131,6 +139,7 @@ const TabNavigator: React.FC = () => {
 const Navigation: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const { theme, colors } = useTheme();
 
     useEffect(() => {
         checkAuth();
@@ -164,21 +173,36 @@ const Navigation: React.FC = () => {
         setIsAuthenticated(false);
     };
 
+    // Define navigation themes based on our context
+    const baseTheme = theme === 'dark' ? DarkTheme : DefaultTheme;
+    const navigationTheme = {
+        ...baseTheme,
+        colors: {
+            ...baseTheme.colors,
+            primary: colors.primary,
+            background: colors.background,
+            card: colors.card,
+            text: colors.text,
+            border: colors.border,
+            notification: colors.error,
+        },
+    };
+
     if (isLoading) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#8b5cf6" />
+            <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
 
     return (
-        <NavigationContainer>
+        <NavigationContainer theme={navigationTheme}>
             <Stack.Navigator
                 screenOptions={{
                     headerShown: false,
                     animation: 'slide_from_right',
-                    contentStyle: { backgroundColor: '#0a0a0f' },
+                    contentStyle: { backgroundColor: colors.background },
                 }}
             >
                 {!isAuthenticated ? (
@@ -215,8 +239,6 @@ const Navigation: React.FC = () => {
 
 const styles = StyleSheet.create({
     tabBar: {
-        backgroundColor: '#16161e',
-        borderTopColor: '#2a2a3a',
         borderTopWidth: 1,
         height: 70,
         paddingBottom: 10,
@@ -228,7 +250,6 @@ const styles = StyleSheet.create({
     },
     loadingContainer: {
         flex: 1,
-        backgroundColor: '#0a0a0f',
         justifyContent: 'center',
         alignItems: 'center',
     },

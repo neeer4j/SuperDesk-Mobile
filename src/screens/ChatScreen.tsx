@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { BackIcon } from '../components/Icons';
 import { messagesService, Message } from '../services/supabaseClient';
+import { useTheme } from '../context/ThemeContext';
 
 interface ChatScreenProps {
     navigation: any;
@@ -27,6 +28,7 @@ interface ChatScreenProps {
 }
 
 const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
+    const { theme, colors } = useTheme();
     const { userId, username } = route.params;
     const [messages, setMessages] = useState<Message[]>([]);
     const [messageText, setMessageText] = useState('');
@@ -93,6 +95,22 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
         }, 100);
     };
 
+    // Dynamic styles based on theme
+    const dynamicStyles = {
+        container: { backgroundColor: colors.background },
+        text: { color: colors.text },
+        subText: { color: colors.subText },
+        border: { borderColor: colors.border },
+        input: {
+            backgroundColor: colors.card,
+            borderColor: colors.cardBorder,
+            color: colors.text,
+        },
+        theirBubble: {
+            backgroundColor: colors.card,
+        },
+    };
+
     const renderMessage = ({ item, index }: { item: Message; index: number }) => {
         const isOwnMessage = item.sender_id !== userId;
         const showAvatar = index === 0 || messages[index - 1].sender_id !== item.sender_id;
@@ -109,8 +127,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                             style={styles.messageAvatar}
                         />
                     ) : (
-                        <View style={styles.messageAvatarPlaceholder}>
-                            <Text style={styles.messageAvatarText}>
+                        <View style={[styles.messageAvatarPlaceholder, { backgroundColor: colors.iconBackground, borderColor: colors.primary }]}>
+                            <Text style={[styles.messageAvatarText, { color: colors.primary }]}>
                                 {username?.charAt(0).toUpperCase()}
                             </Text>
                         </View>
@@ -120,11 +138,11 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
                 <View style={[
                     styles.messageBubble,
-                    isOwnMessage ? styles.ownMessageBubble : styles.theirMessageBubble
+                    isOwnMessage ? [styles.ownMessageBubble, { backgroundColor: colors.primary }] : [styles.theirMessageBubble, dynamicStyles.theirBubble]
                 ]}>
                     <Text style={[
                         styles.messageText,
-                        isOwnMessage ? styles.ownMessageText : styles.theirMessageText
+                        isOwnMessage ? styles.ownMessageText : [styles.theirMessageText, dynamicStyles.text]
                     ]}>
                         {item.content}
                     </Text>
@@ -135,25 +153,28 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
 
     if (isLoading) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#8b5cf6" />
+            <View style={[styles.loadingContainer, dynamicStyles.container]}>
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
 
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+        <View style={[styles.container, dynamicStyles.container]}>
+            <StatusBar
+                barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+                backgroundColor={colors.background}
+            />
 
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, dynamicStyles.border]}>
                 <TouchableOpacity
                     style={styles.backButton}
                     onPress={() => navigation.goBack()}
                 >
-                    <BackIcon size={24} color="#fff" />
+                    <BackIcon size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>@{username}</Text>
+                <Text style={[styles.headerTitle, dynamicStyles.text]}>@{username}</Text>
                 <View style={styles.headerRight} />
             </View>
 
@@ -167,7 +188,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                 onContentSizeChange={scrollToBottom}
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
-                        <Text style={styles.emptyText}>
+                        <Text style={[styles.emptyText, dynamicStyles.subText]}>
                             No messages yet. Start the conversation!
                         </Text>
                     </View>
@@ -179,18 +200,18 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
-                <View style={styles.inputContainer}>
+                <View style={[styles.inputContainer, dynamicStyles.border, dynamicStyles.container]}>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, dynamicStyles.input]}
                         placeholder="Type a message..."
-                        placeholderTextColor="#666"
+                        placeholderTextColor={colors.subText}
                         value={messageText}
                         onChangeText={setMessageText}
                         multiline
                         maxLength={1000}
                     />
                     <TouchableOpacity
-                        style={[styles.sendButton, !messageText.trim() && styles.sendButtonDisabled]}
+                        style={[styles.sendButton, { backgroundColor: colors.primary }, !messageText.trim() && { backgroundColor: colors.primary + '40' }]}
                         onPress={handleSend}
                         disabled={!messageText.trim() || isSending}
                     >

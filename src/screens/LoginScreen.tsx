@@ -15,6 +15,7 @@ import {
     Image,
 } from 'react-native';
 import { authService } from '../services/supabaseClient';
+import { useTheme } from '../context/ThemeContext';
 
 interface LoginScreenProps {
     navigation: any;
@@ -31,6 +32,7 @@ interface UserProfile {
 type AuthStep = 'email' | 'otp' | 'welcome';
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
+    const { theme, colors } = useTheme();
     const [step, setStep] = useState<AuthStep>('email');
     const [email, setEmail] = useState('');
     const [otpCode, setOtpCode] = useState('');
@@ -119,10 +121,37 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
         setOtpCode('');
     };
 
+    // Dynamic styles based on theme
+    const dynamicStyles = {
+        container: {
+            backgroundColor: colors.background,
+        },
+        card: {
+            backgroundColor: colors.card,
+            borderColor: colors.cardBorder,
+            shadowColor: theme === 'light' ? '#000' : 'transparent',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: theme === 'light' ? 0.08 : 0,
+            shadowRadius: 8,
+            elevation: theme === 'light' ? 3 : 0,
+        },
+        text: {
+            color: colors.text,
+        },
+        subText: {
+            color: colors.subText,
+        },
+        input: {
+            backgroundColor: theme === 'dark' ? '#1e1e2e' : '#F0EDFA',
+            borderColor: theme === 'dark' ? '#3a3a4a' : colors.primary + '40',
+            color: colors.text,
+        },
+    };
+
     if (isLoading) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#8b5cf6" />
+            <View style={[styles.loadingContainer, dynamicStyles.container]}>
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
@@ -130,35 +159,38 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
     // Welcome Back Screen - Desktop Style
     if (step === 'welcome' && userProfile) {
         return (
-            <View style={styles.container}>
-                <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+            <View style={[styles.container, dynamicStyles.container]}>
+                <StatusBar
+                    barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+                    backgroundColor={colors.background}
+                />
 
                 <View style={styles.welcomeContent}>
                     {/* Title */}
-                    <Text style={styles.welcomeTitle}>Welcome Back!</Text>
-                    <Text style={styles.welcomeSubtitle}>You're currently signed in as</Text>
+                    <Text style={[styles.welcomeTitle, dynamicStyles.text]}>Welcome Back!</Text>
+                    <Text style={[styles.welcomeSubtitle, dynamicStyles.subText]}>You're currently signed in as</Text>
 
                     {/* Profile Card */}
-                    <View style={styles.profileCard}>
+                    <View style={[styles.profileCard, dynamicStyles.card]}>
                         {userProfile.avatar_url ? (
                             <Image
                                 source={{ uri: userProfile.avatar_url }}
                                 style={styles.profileAvatar}
                             />
                         ) : (
-                            <View style={styles.profileAvatarPlaceholder}>
+                            <View style={[styles.profileAvatarPlaceholder, { backgroundColor: colors.primary }]}>
                                 <Text style={styles.profileAvatarText}>
                                     {userProfile.username.charAt(0).toUpperCase()}
                                 </Text>
                             </View>
                         )}
 
-                        <Text style={styles.profileUsername}>@{userProfile.username}</Text>
+                        <Text style={[styles.profileUsername, dynamicStyles.text]}>@{userProfile.username}</Text>
                     </View>
 
                     {/* Continue Button */}
                     <TouchableOpacity
-                        style={styles.continueButton}
+                        style={[styles.continueButton, { backgroundColor: colors.primary }]}
                         onPress={handleContinue}
                     >
                         <Text style={styles.continueButtonText}>Continue to Dashboard</Text>
@@ -169,7 +201,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
                         style={styles.switchButton}
                         onPress={handleSwitchAccount}
                     >
-                        <Text style={styles.switchButtonText}>Sign in with different account</Text>
+                        <Text style={[styles.switchButtonText, { color: colors.primary }]}>Sign in with different account</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -177,8 +209,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
     }
 
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+        <View style={[styles.container, dynamicStyles.container]}>
+            <StatusBar
+                barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+                backgroundColor={colors.background}
+            />
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -190,25 +225,25 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
                 >
                     {/* Logo */}
                     <View style={styles.logoContainer}>
-                        <Text style={styles.logo}>SuperDesk</Text>
-                        <Text style={styles.subtitle}>Remote Desktop Control</Text>
+                        <Text style={[styles.logo, dynamicStyles.text]}>SuperDesk</Text>
+                        <Text style={[styles.subtitle, { color: colors.primary }]}>Remote Desktop Control</Text>
                     </View>
 
                     {/* Auth Card */}
-                    <View style={styles.card}>
+                    <View style={[styles.card, dynamicStyles.card]}>
                         {step === 'email' ? (
                             <>
-                                <Text style={styles.cardTitle}>Sign In</Text>
-                                <Text style={styles.cardDescription}>
+                                <Text style={[styles.cardTitle, dynamicStyles.text]}>Sign In</Text>
+                                <Text style={[styles.cardDescription, dynamicStyles.subText]}>
                                     Enter your email to receive a verification code
                                 </Text>
 
                                 <View style={styles.inputContainer}>
-                                    <Text style={styles.inputLabel}>Email</Text>
+                                    <Text style={[styles.inputLabel, dynamicStyles.subText]}>Email</Text>
                                     <TextInput
-                                        style={styles.input}
+                                        style={[styles.input, dynamicStyles.input]}
                                         placeholder="Enter your email"
-                                        placeholderTextColor="#666"
+                                        placeholderTextColor={colors.subText}
                                         value={email}
                                         onChangeText={setEmail}
                                         keyboardType="email-address"
@@ -218,7 +253,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
                                 </View>
 
                                 <TouchableOpacity
-                                    style={styles.continueButton}
+                                    style={[styles.continueButton, { backgroundColor: colors.primary }]}
                                     onPress={handleSendOTP}
                                     disabled={isSubmitting}
                                 >
@@ -231,17 +266,17 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
                             </>
                         ) : (
                             <>
-                                <Text style={styles.cardTitle}>Verify Code</Text>
-                                <Text style={styles.cardDescription}>
+                                <Text style={[styles.cardTitle, dynamicStyles.text]}>Verify Code</Text>
+                                <Text style={[styles.cardDescription, dynamicStyles.subText]}>
                                     Enter the 6-digit code sent to {email}
                                 </Text>
 
                                 <View style={styles.inputContainer}>
-                                    <Text style={styles.inputLabel}>Verification Code</Text>
+                                    <Text style={[styles.inputLabel, dynamicStyles.subText]}>Verification Code</Text>
                                     <TextInput
-                                        style={[styles.input, styles.otpInput]}
+                                        style={[styles.input, styles.otpInput, dynamicStyles.input]}
                                         placeholder="000000"
-                                        placeholderTextColor="#666"
+                                        placeholderTextColor={colors.subText}
                                         value={otpCode}
                                         onChangeText={setOtpCode}
                                         keyboardType="number-pad"
@@ -251,7 +286,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
                                 </View>
 
                                 <TouchableOpacity
-                                    style={styles.continueButton}
+                                    style={[styles.continueButton, { backgroundColor: colors.primary }]}
                                     onPress={handleVerifyOTP}
                                     disabled={isSubmitting}
                                 >
@@ -266,7 +301,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
                                     style={styles.switchButton}
                                     onPress={() => setStep('email')}
                                 >
-                                    <Text style={styles.switchButtonText}>
+                                    <Text style={[styles.switchButtonText, { color: colors.primary }]}>
                                         Wrong email? Go back
                                     </Text>
                                 </TouchableOpacity>
