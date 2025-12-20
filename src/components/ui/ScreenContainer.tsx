@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, StatusBar, SafeAreaView, ViewStyle, ScrollView } from 'react-native';
-import { colors, layout } from '../../theme/designSystem';
+import { layout } from '../../theme/designSystem';
+import { useTheme } from '../../context/ThemeContext';
 
 interface ScreenContainerProps {
     children: React.ReactNode;
@@ -15,6 +16,8 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
     withScroll = false,
     fullWidth = false,
 }) => {
+    const { theme, colors } = useTheme();
+
     const contentStyle = [
         styles.container,
         !fullWidth && { padding: layout.spacing.md },
@@ -34,8 +37,11 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
     );
 
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+            <StatusBar
+                barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+                backgroundColor={colors.background}
+            />
             {Content}
         </SafeAreaView>
     );
@@ -44,7 +50,6 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: colors.background,
     },
     container: {
         flex: 1,

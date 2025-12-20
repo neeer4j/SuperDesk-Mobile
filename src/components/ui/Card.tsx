@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
-import { colors, layout, shadows } from '../../theme/designSystem';
+import { layout, shadows } from '../../theme/designSystem';
+import { useTheme } from '../../context/ThemeContext';
 
 interface CardProps {
     children: React.ReactNode;
@@ -17,13 +18,40 @@ export const Card: React.FC<CardProps> = ({
     onPress,
     padding = 'md',
 }) => {
-    const cardStyles = [
-        styles.card,
-        { padding: layout.spacing[padding] },
-        variant === 'outlined' && styles.outlined,
-        variant === 'elevated' && styles.elevated,
-        style,
-    ];
+    const { colors } = useTheme();
+
+    const getCardStyles = () => {
+        const baseStyle = {
+            padding: layout.spacing[padding],
+            borderRadius: layout.borderRadius.md,
+        };
+
+        switch (variant) {
+            case 'outlined':
+                return {
+                    ...baseStyle,
+                    backgroundColor: 'transparent',
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                };
+            case 'elevated':
+                return {
+                    ...baseStyle,
+                    backgroundColor: colors.card,
+                    borderWidth: 0,
+                    ...shadows.md,
+                };
+            default:
+                return {
+                    ...baseStyle,
+                    backgroundColor: colors.card,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                };
+        }
+    };
+
+    const cardStyles = [getCardStyles(), style];
 
     if (onPress) {
         return (
@@ -36,22 +64,4 @@ export const Card: React.FC<CardProps> = ({
     return <View style={cardStyles}>{children}</View>;
 };
 
-const styles = StyleSheet.create({
-    card: {
-        backgroundColor: colors.surface,
-        borderRadius: layout.borderRadius.md,
-        // Default subtle border for all cards in dark mode for better definition
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    outlined: {
-        backgroundColor: 'transparent',
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    elevated: {
-        backgroundColor: colors.surfaceHighlight,
-        borderWidth: 0,
-        ...shadows.md,
-    },
-});
+const styles = StyleSheet.create({});

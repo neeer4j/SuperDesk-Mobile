@@ -17,15 +17,14 @@ import { SettingsIcon, BackIcon } from '../components/Icons'; // Assuming generi
 import { friendsService, Friend } from '../services/supabaseClient';
 import { useTheme } from '../context/ThemeContext';
 import { ScreenContainer, Card, Button } from '../components/ui';
-import { colors, typography, layout } from '../theme/designSystem';
+import { typography, layout } from '../theme/designSystem';
 
 interface FriendsScreenProps {
     navigation: any;
 }
 
 const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
-    // We rely on designSystem values
-    const { theme } = useTheme();
+    const { theme, colors } = useTheme();
     const [friends, setFriends] = useState<Friend[]>([]);
     const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -121,8 +120,8 @@ const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
                             style={styles.avatar}
                         />
                     ) : (
-                        <View style={styles.avatarPlaceholder}>
-                            <Text style={styles.avatarText}>
+                        <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary + '20', borderColor: colors.primary }]}>
+                            <Text style={[styles.avatarText, { color: colors.primary }]}>
                                 {item.friend_profile?.username?.charAt(0).toUpperCase() || '?'}
                             </Text>
                         </View>
@@ -130,10 +129,10 @@ const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
                 </View>
 
                 <View style={styles.textContainer}>
-                    <Text style={styles.friendName}>
+                    <Text style={[styles.friendName, { color: colors.text }]}>
                         {item.friend_profile?.display_name || item.friend_profile?.username}
                     </Text>
-                    <Text style={styles.friendUsername}>@{item.friend_profile?.username}</Text>
+                    <Text style={[styles.friendUsername, { color: colors.subText }]}>@{item.friend_profile?.username}</Text>
                 </View>
             </View>
 
@@ -149,7 +148,7 @@ const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
     );
 
     const renderPendingRequest = ({ item }: { item: Friend }) => (
-        <Card style={{ ...styles.friendItem, ...styles.pendingItem }} padding="sm">
+        <Card style={{ ...styles.friendItem, ...styles.pendingItem, borderColor: colors.primary + '40' }} padding="sm">
             <View style={styles.friendInfo}>
                 <View style={styles.avatarContainer}>
                     {item.friend_profile?.avatar_url ? (
@@ -167,10 +166,10 @@ const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
                 </View>
 
                 <View style={styles.textContainer}>
-                    <Text style={styles.friendName}>
+                    <Text style={[styles.friendName, { color: colors.text }]}>
                         {item.friend_profile?.display_name || item.friend_profile?.username}
                     </Text>
-                    <Text style={styles.friendUsername}>@{item.friend_profile?.username}</Text>
+                    <Text style={[styles.friendUsername, { color: colors.subText }]}>@{item.friend_profile?.username}</Text>
                 </View>
             </View>
 
@@ -196,18 +195,18 @@ const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
         <ScreenContainer>
             {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Friends</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>Friends</Text>
                 <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
-                    <SettingsIcon size={24} color={colors.textSecondary} />
+                    <SettingsIcon size={24} color={colors.subText} />
                 </TouchableOpacity>
             </View>
 
             {/* Add Friend Input */}
             <View style={styles.addFriendContainer}>
                 <TextInput
-                    style={styles.searchInput}
+                    style={[styles.searchInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
                     placeholder="Enter username to add friend"
-                    placeholderTextColor={colors.textTertiary}
+                    placeholderTextColor={colors.subText}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     autoCapitalize="none"
@@ -278,7 +277,6 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: typography.size.xl,
         fontFamily: typography.fontFamily.bold,
-        color: colors.textPrimary,
     },
     addFriendContainer: {
         flexDirection: 'row',
@@ -286,15 +284,12 @@ const styles = StyleSheet.create({
     },
     searchInput: {
         flex: 1,
-        backgroundColor: colors.surface,
         borderRadius: layout.borderRadius.md,
         paddingHorizontal: 16,
         paddingVertical: 12,
-        color: colors.textPrimary,
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.size.md,
         borderWidth: 1,
-        borderColor: colors.border,
         marginRight: 10,
     },
     addButton: {
@@ -312,7 +307,6 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: typography.size.sm,
         fontFamily: typography.fontFamily.semiBold,
-        color: colors.primary,
         marginBottom: layout.spacing.sm,
         marginTop: layout.spacing.xs,
     },
@@ -323,7 +317,6 @@ const styles = StyleSheet.create({
         marginBottom: layout.spacing.sm,
     },
     pendingItem: {
-        borderColor: colors.primary + '40',
         borderWidth: 1,
     },
     friendInfo: {
@@ -338,22 +331,18 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: colors.surfaceHighlight,
     },
     avatarPlaceholder: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: colors.primary + '20',
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: colors.primary,
     },
     avatarText: {
         fontSize: 16,
         fontFamily: typography.fontFamily.bold,
-        color: colors.primary,
     },
     textContainer: {
         flex: 1,
@@ -361,19 +350,16 @@ const styles = StyleSheet.create({
     friendName: {
         fontSize: typography.size.sm,
         fontFamily: typography.fontFamily.semiBold,
-        color: colors.textPrimary,
     },
     friendUsername: {
         fontSize: typography.size.xs,
         fontFamily: typography.fontFamily.regular,
-        color: colors.textTertiary,
     },
     emptyState: {
         paddingVertical: 40,
         alignItems: 'center',
     },
     emptyText: {
-        color: colors.textSecondary,
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.size.md,
     },

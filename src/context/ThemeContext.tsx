@@ -13,8 +13,15 @@ interface ThemeColors {
     primary: string;
     error: string;
     success: string;
+    warning: string;
     cardBorder: string;
     iconBackground: string;
+    // Legacy aliases for backward compatibility
+    surface: string;
+    surfaceHighlight: string;
+    textPrimary: string;
+    textSecondary: string;
+    textTertiary: string;
 }
 
 export const themes: Record<ThemeType, ThemeColors> = {
@@ -27,20 +34,34 @@ export const themes: Record<ThemeType, ThemeColors> = {
         primary: '#8b5cf6',
         error: '#ef4444',
         success: '#10b981',
+        warning: '#f59e0b',
         cardBorder: '#2a2a3a',
-        iconBackground: 'rgba(139, 92, 246, 0.2)', // #8b5cf620
+        iconBackground: 'rgba(139, 92, 246, 0.2)',
+        // Legacy aliases
+        surface: '#16161e',
+        surfaceHighlight: 'rgba(139, 92, 246, 0.2)',
+        textPrimary: '#ffffff',
+        textSecondary: '#888888',
+        textTertiary: '#666666',
     },
     light: {
-        background: '#FFFFFF',           // Pure white main background
-        card: '#F8F7FF',                  // Subtle purple-tinted white for cards
-        text: '#1A1A2E',                  // Dark purple-tinted text for better harmony
-        subText: '#6B7280',               // Neutral grey for secondary text
-        border: '#E8E5F0',                // Soft purple-grey border
-        primary: '#8b5cf6',               // Same purple as dark mode for consistency
+        background: '#FFFFFF',
+        card: '#F8F7FF',
+        text: '#1A1A2E',
+        subText: '#6B7280',
+        border: '#E8E5F0',
+        primary: '#8b5cf6',
         error: '#EF4444',
         success: '#10B981',
-        cardBorder: '#E0DCF0',            // Subtle purple-tinted border for cards
-        iconBackground: 'rgba(139, 92, 246, 0.12)', // Light purple tint for icon backgrounds
+        warning: '#f59e0b',
+        cardBorder: '#E0DCF0',
+        iconBackground: 'rgba(139, 92, 246, 0.12)',
+        // Legacy aliases
+        surface: '#F8F7FF',
+        surfaceHighlight: 'rgba(139, 92, 246, 0.12)',
+        textPrimary: '#1A1A2E',
+        textSecondary: '#6B7280',
+        textTertiary: '#9CA3AF',
     },
 };
 

@@ -26,8 +26,7 @@ interface FileTransferScreenProps {
 }
 
 const FileTransferScreen: React.FC<FileTransferScreenProps> = ({ navigation }) => {
-    // We rely on designSystem values
-    const { theme } = useTheme();
+    const { theme, colors } = useTheme();
     const [transfers, setTransfers] = useState<TransferProgress[]>([]);
     const [isChannelReady, setIsChannelReady] = useState(false);
     const [isSending, setIsSending] = useState(false);

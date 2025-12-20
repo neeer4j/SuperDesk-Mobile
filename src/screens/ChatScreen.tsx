@@ -30,8 +30,7 @@ interface ChatScreenProps {
 }
 
 const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
-    // We primarily use designSystem values
-    const { theme } = useTheme();
+    const { theme, colors } = useTheme();
     const { userId, username } = route.params;
     const [messages, setMessages] = useState<Message[]>([]);
     const [messageText, setMessageText] = useState('');

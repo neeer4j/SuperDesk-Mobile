@@ -212,10 +212,13 @@ const Navigation: React.FC = () => {
                     animation: 'slide_from_right',
                     contentStyle: { backgroundColor: colors.background },
                 }}
+                initialRouteName="Landing"
             >
+                {/* Landing screen always shows first */}
+                <Stack.Screen name="Landing" component={LandingScreen} />
+
                 {!isAuthenticated ? (
                     <>
-                        <Stack.Screen name="Landing" component={LandingScreen} />
                         <Stack.Screen name="Login">
                             {(props) => <LoginScreen {...props} onLogin={handleLogin} />}
                         </Stack.Screen>

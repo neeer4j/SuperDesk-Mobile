@@ -15,7 +15,7 @@ import { sessionManager, SessionState } from '../services/SessionManager';
 import { webRTCService } from '../services/WebRTCService';
 import { useTheme } from '../context/ThemeContext';
 import { ScreenContainer, Card, Button } from '../components/ui';
-import { colors, typography, layout } from '../theme/designSystem';
+import { typography, layout } from '../theme/designSystem';
 import Clipboard from '@react-native-clipboard/clipboard';
 
 interface HostSessionScreenProps {
@@ -25,8 +25,7 @@ interface HostSessionScreenProps {
 type ConnectionStatus = 'disconnected' | 'connecting' | 'session-active' | 'guest-connected';
 
 const HostSessionScreen: React.FC<HostSessionScreenProps> = ({ navigation }) => {
-    // We can still use useTheme for toggle logic if needed, but we rely on designSystem for values
-    const { theme } = useTheme();
+    const { theme, colors } = useTheme();
     const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
     const [sessionCode, setSessionCode] = useState('');
     const [guestId, setGuestId] = useState<string | null>(null);
@@ -211,11 +210,11 @@ const HostSessionScreen: React.FC<HostSessionScreenProps> = ({ navigation }) => 
         <ScreenContainer withScroll>
             {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.logo}>SuperDesk</Text>
+                <Text style={[styles.logo, { color: colors.text }]}>SuperDesk</Text>
                 <Button
                     title=""
                     variant="ghost"
-                    icon={<SettingsIcon size={24} color={colors.textSecondary} />}
+                    icon={<SettingsIcon size={24} color={colors.subText} />}
                     onPress={() => navigation.navigate('Settings')}
                     style={styles.settingsButton}
                 />
@@ -226,22 +225,22 @@ const HostSessionScreen: React.FC<HostSessionScreenProps> = ({ navigation }) => 
                     {/* Host Session Card */}
                     <Card style={styles.mainCard}>
                         <View style={styles.cardHeader}>
-                            <View style={styles.iconContainer}>
+                            <View style={[styles.iconContainer, { backgroundColor: colors.iconBackground }]}>
                                 <Text style={styles.iconText}>📡</Text>
                             </View>
                             <View>
-                                <Text style={styles.cardTitle}>Host Session</Text>
-                                <Text style={styles.cardSubtitle}>Share your screen with others</Text>
+                                <Text style={[styles.cardTitle, { color: colors.text }]}>Host Session</Text>
+                                <Text style={[styles.cardSubtitle, { color: colors.subText }]}>Share your screen with others</Text>
                             </View>
                         </View>
 
-                        <Text style={styles.cardDescription}>
+                        <Text style={[styles.cardDescription, { color: colors.subText }]}>
                             Generate a secure session code to share your screen with PC viewer.
                         </Text>
 
                         {error && (
                             <View style={styles.errorContainer}>
-                                <Text style={styles.errorText}>⚠️ {error}</Text>
+                                <Text style={[styles.errorText, { color: colors.error }]}>⚠️ {error}</Text>
                             </View>
                         )}
 
@@ -255,20 +254,20 @@ const HostSessionScreen: React.FC<HostSessionScreenProps> = ({ navigation }) => 
 
                     {/* How it works */}
                     <View style={styles.infoSection}>
-                        <Text style={styles.sectionTitle}>HOW IT WORKS</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.subText }]}>HOW IT WORKS</Text>
 
                         <Card variant="outlined" style={styles.infoCard}>
                             <View style={styles.stepRow}>
-                                <View style={styles.stepBadge}><Text style={styles.stepText}>1</Text></View>
-                                <Text style={styles.stepDesc}>Tap "Start Hosting" to get a code</Text>
+                                <View style={[styles.stepBadge, { backgroundColor: colors.iconBackground }]}><Text style={[styles.stepText, { color: colors.text }]}>1</Text></View>
+                                <Text style={[styles.stepDesc, { color: colors.subText }]}>Tap "Start Hosting" to get a code</Text>
                             </View>
                             <View style={styles.stepRow}>
-                                <View style={styles.stepBadge}><Text style={styles.stepText}>2</Text></View>
-                                <Text style={styles.stepDesc}>Share code with the viewer</Text>
+                                <View style={[styles.stepBadge, { backgroundColor: colors.iconBackground }]}><Text style={[styles.stepText, { color: colors.text }]}>2</Text></View>
+                                <Text style={[styles.stepDesc, { color: colors.subText }]}>Share code with the viewer</Text>
                             </View>
                             <View style={styles.stepRow}>
-                                <View style={styles.stepBadge}><Text style={styles.stepText}>3</Text></View>
-                                <Text style={styles.stepDesc}>Approve screen share request</Text>
+                                <View style={[styles.stepBadge, { backgroundColor: colors.iconBackground }]}><Text style={[styles.stepText, { color: colors.text }]}>3</Text></View>
+                                <Text style={[styles.stepDesc, { color: colors.subText }]}>Approve screen share request</Text>
                             </View>
                         </Card>
                     </View>
@@ -276,20 +275,20 @@ const HostSessionScreen: React.FC<HostSessionScreenProps> = ({ navigation }) => 
             ) : (
                 <>
                     {/* Active Session Card */}
-                    <Card style={styles.activeCard}>
-                        <View style={styles.statusHeader}>
+                    <Card style={{ ...styles.activeCard, borderColor: colors.primary }}>
+                        <View style={[styles.statusHeader, { backgroundColor: colors.iconBackground }]}>
                             <View style={[
                                 styles.statusDot,
-                                { backgroundColor: connectionStatus === 'guest-connected' ? colors.success : colors.warning }
+                                { backgroundColor: connectionStatus === 'guest-connected' ? colors.success : '#f59e0b' }
                             ]} />
-                            <Text style={styles.statusText}>
+                            <Text style={[styles.statusText, { color: colors.text }]}>
                                 {connectionStatus === 'guest-connected' ? 'Guest Connected' : 'Waiting for Guest'}
                             </Text>
                         </View>
 
                         <View style={styles.codeContainer}>
-                            <Text style={styles.codeLabel}>SESSION CODE</Text>
-                            <Text style={styles.codeValue}>{formatCode(sessionCode)}</Text>
+                            <Text style={[styles.codeLabel, { color: colors.primary }]}>SESSION CODE</Text>
+                            <Text style={[styles.codeValue, { color: colors.text }]}>{formatCode(sessionCode)}</Text>
                         </View>
 
                         <View style={styles.actionGrid}>
@@ -326,9 +325,9 @@ const HostSessionScreen: React.FC<HostSessionScreenProps> = ({ navigation }) => 
                     />
 
                     <View style={styles.statusFooter}>
-                        <Text style={styles.footerText}>{getStatusText()}</Text>
+                        <Text style={[styles.footerText, { color: colors.subText }]}>{getStatusText()}</Text>
                         {connectionStatus === 'session-active' && (
-                            <ActivityIndicator size="small" color={colors.textTertiary} style={{ marginTop: 8 }} />
+                            <ActivityIndicator size="small" color={colors.subText} style={{ marginTop: 8 }} />
                         )}
                     </View>
                 </>
@@ -348,7 +347,6 @@ const styles = StyleSheet.create({
     logo: {
         fontFamily: typography.fontFamily.bold,
         fontSize: typography.size.xl,
-        color: colors.textPrimary,
     },
     settingsButton: {
         padding: 0,
@@ -367,7 +365,6 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: layout.borderRadius.md,
-        backgroundColor: colors.surfaceHighlight,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: layout.spacing.md,
@@ -378,17 +375,14 @@ const styles = StyleSheet.create({
     cardTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.size.lg,
-        color: colors.textPrimary,
     },
     cardSubtitle: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.size.sm,
-        color: colors.textSecondary,
     },
     cardDescription: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.size.md,
-        color: colors.textSecondary,
         marginBottom: layout.spacing.lg,
         lineHeight: typography.lineHeight.md,
     },
@@ -399,7 +393,6 @@ const styles = StyleSheet.create({
         marginBottom: layout.spacing.md,
     },
     errorText: {
-        color: colors.error,
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.size.sm,
     },
@@ -412,7 +405,6 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontFamily: typography.fontFamily.bold,
         fontSize: typography.size.xs,
-        color: colors.textTertiary,
         letterSpacing: 1,
         marginBottom: layout.spacing.sm,
     },
@@ -428,24 +420,20 @@ const styles = StyleSheet.create({
         width: 24,
         height: 24,
         borderRadius: 12,
-        backgroundColor: colors.surfaceHighlight,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: layout.spacing.md,
     },
     stepText: {
-        color: colors.textPrimary,
         fontSize: 12,
         fontWeight: 'bold',
     },
     stepDesc: {
-        color: colors.textSecondary,
         fontSize: 14,
     },
 
     // Active session styles
     activeCard: {
-        borderColor: colors.primary,
         borderWidth: 1,
         marginBottom: layout.spacing.lg,
     },
@@ -453,7 +441,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: layout.spacing.lg,
-        backgroundColor: colors.surfaceHighlight,
         padding: layout.spacing.sm,
         borderRadius: layout.borderRadius.full,
         alignSelf: 'flex-start',
@@ -466,7 +453,6 @@ const styles = StyleSheet.create({
         marginLeft: 4,
     },
     statusText: {
-        color: colors.textPrimary,
         fontSize: 12,
         fontWeight: '600',
         marginRight: 4,
@@ -476,14 +462,12 @@ const styles = StyleSheet.create({
         paddingVertical: layout.spacing.xl,
     },
     codeLabel: {
-        color: colors.primary,
         fontSize: 12,
         letterSpacing: 2,
         fontWeight: 'bold',
         marginBottom: layout.spacing.xs,
     },
     codeValue: {
-        color: colors.textPrimary,
         fontSize: 40,
         fontFamily: typography.fontFamily.bold,
         letterSpacing: 4,
@@ -504,7 +488,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     footerText: {
-        color: colors.textTertiary,
         fontSize: 14,
     }
 });

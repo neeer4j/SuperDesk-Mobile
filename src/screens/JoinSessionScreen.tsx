@@ -11,7 +11,7 @@ import {
     TextInput,
     StyleSheet,
 } from 'react-native';
-import { layout, colors, typography } from '../theme/designSystem';
+import { layout, typography } from '../theme/designSystem';
 import { ScreenContainer, Card, Button } from '../components/ui';
 import { SettingsIcon } from '../components/Icons'; // Using local icon instead of lucide for consistency if needed, or import standard
 import { sessionManager, SessionState } from '../services/SessionManager';
@@ -27,7 +27,7 @@ type JoinStatus = 'idle' | 'connecting' | 'joining' | 'connected' | 'error';
 
 const JoinSessionScreen: React.FC<JoinSessionScreenProps> = ({ navigation }) => {
     // We stick to the designSystem values primarily
-    const { theme } = useTheme();
+    const { theme, colors } = useTheme();
     const [sessionCode, setSessionCode] = useState('');
     const [status, setStatus] = useState<JoinStatus>('idle');
     const [error, setError] = useState<string | null>(null);
@@ -187,11 +187,11 @@ const JoinSessionScreen: React.FC<JoinSessionScreenProps> = ({ navigation }) => 
         <ScreenContainer withScroll>
             {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.logo}>SuperDesk</Text>
+                <Text style={[styles.logo, { color: colors.text }]}>SuperDesk</Text>
                 <Button
                     title=""
                     variant="ghost"
-                    icon={<SettingsIcon size={24} color={colors.textSecondary} />}
+                    icon={<SettingsIcon size={24} color={colors.subText} />}
                     onPress={() => navigation.navigate('Settings')}
                     style={styles.settingsButton}
                 />
@@ -204,29 +204,29 @@ const JoinSessionScreen: React.FC<JoinSessionScreenProps> = ({ navigation }) => 
                 {status !== 'connected' ? (
                     <>
                         <Card style={styles.mainCard}>
-                            <Text style={styles.cardTitle}>Join Remote Session</Text>
-                            <Text style={styles.cardSubtitle}>
+                            <Text style={[styles.cardTitle, { color: colors.text }]}>Join Remote Session</Text>
+                            <Text style={[styles.cardSubtitle, { color: colors.subText }]}>
                                 Enter the 8-character code to connect to a host.
                             </Text>
 
                             <View style={styles.inputContainer}>
-                                <Text style={styles.inputLabel}>SESSION CODE</Text>
+                                <Text style={[styles.inputLabel, { color: colors.primary }]}>SESSION CODE</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
                                     placeholder="XXXX-XXXX"
-                                    placeholderTextColor={colors.textTertiary}
+                                    placeholderTextColor={colors.subText}
                                     value={formatDisplayCode(sessionCode)}
                                     onChangeText={handleCodeChange}
                                     maxLength={9}
                                     autoCapitalize="characters"
                                     autoCorrect={false}
                                 />
-                                <Text style={styles.charCount}>{sessionCode.length}/8</Text>
+                                <Text style={[styles.charCount, { color: colors.subText }]}>{sessionCode.length}/8</Text>
                             </View>
 
                             {error && (
                                 <View style={styles.errorContainer}>
-                                    <Text style={styles.errorText}>⚠️ {error}</Text>
+                                    <Text style={[styles.errorText, { color: colors.error }]}>⚠️ {error}</Text>
                                 </View>
                             )}
 
@@ -240,23 +240,23 @@ const JoinSessionScreen: React.FC<JoinSessionScreenProps> = ({ navigation }) => 
                         </Card>
 
                         <View style={styles.helpSection}>
-                            <Text style={styles.helpTitle}>HOW TO CONNECT</Text>
-                            <Text style={styles.helpText}>1. Ask the host for their 8-character code</Text>
-                            <Text style={styles.helpText}>2. Enter the code in the box above</Text>
-                            <Text style={styles.helpText}>3. Tap "Join Session" to start viewing</Text>
+                            <Text style={[styles.helpTitle, { color: colors.subText }]}>HOW TO CONNECT</Text>
+                            <Text style={[styles.helpText, { color: colors.subText }]}>1. Ask the host for their 8-character code</Text>
+                            <Text style={[styles.helpText, { color: colors.subText }]}>2. Enter the code in the box above</Text>
+                            <Text style={[styles.helpText, { color: colors.subText }]}>3. Tap "Join Session" to start viewing</Text>
                         </View>
                     </>
                 ) : (
                     <>
                         {/* Connected State */}
-                        <Card style={styles.connectedCard} variant="elevated">
+                        <Card style={{ ...styles.connectedCard, borderColor: colors.success }} variant="elevated">
                             <View style={styles.connectedHeader}>
                                 <View style={styles.connectedIndicator} />
-                                <Text style={styles.connectedTitle}>Connected to Host</Text>
+                                <Text style={[styles.connectedTitle, { color: colors.success }]}>Connected to Host</Text>
                             </View>
 
-                            <Text style={styles.connectedCode}>{formatDisplayCode(sessionCode)}</Text>
-                            <Text style={styles.connectedHint}>
+                            <Text style={[styles.connectedCode, { color: colors.text }]}>{formatDisplayCode(sessionCode)}</Text>
+                            <Text style={[styles.connectedHint, { color: colors.subText }]}>
                                 You are connected! Ready to view remote screen.
                             </Text>
 
@@ -293,7 +293,6 @@ const styles = StyleSheet.create({
     logo: {
         fontFamily: typography.fontFamily.bold,
         fontSize: typography.size.xl,
-        color: colors.textPrimary,
     },
     settingsButton: {
         padding: 0,
@@ -306,32 +305,26 @@ const styles = StyleSheet.create({
     cardTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.size.lg,
-        color: colors.textPrimary,
         marginBottom: layout.spacing.xs,
     },
     cardSubtitle: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.size.sm,
-        color: colors.textSecondary,
         marginBottom: layout.spacing.xl,
     },
     inputContainer: {
         marginBottom: layout.spacing.lg,
     },
     inputLabel: {
-        color: colors.primary,
         fontSize: 12,
         fontWeight: 'bold',
         letterSpacing: 1,
         marginBottom: layout.spacing.sm,
     },
     input: {
-        backgroundColor: colors.background,
         borderWidth: 1,
-        borderColor: colors.border,
         borderRadius: layout.borderRadius.md,
         padding: layout.spacing.md,
-        color: colors.textPrimary,
         fontFamily: typography.fontFamily.bold,
         fontSize: 24,
         textAlign: 'center',
@@ -339,7 +332,6 @@ const styles = StyleSheet.create({
     },
     charCount: {
         textAlign: 'right',
-        color: colors.textTertiary,
         fontSize: 12,
         marginTop: layout.spacing.xs,
     },
@@ -350,7 +342,6 @@ const styles = StyleSheet.create({
         marginBottom: layout.spacing.md,
     },
     errorText: {
-        color: colors.error,
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.size.sm,
     },
@@ -361,13 +352,11 @@ const styles = StyleSheet.create({
         padding: layout.spacing.md,
     },
     helpTitle: {
-        color: colors.textTertiary,
         fontSize: 12,
         fontWeight: 'bold',
         marginBottom: layout.spacing.md,
     },
     helpText: {
-        color: colors.textSecondary,
         fontSize: 14,
         marginBottom: layout.spacing.sm,
     },
@@ -377,7 +366,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: layout.spacing.xl,
         marginBottom: layout.spacing.lg,
-        borderColor: colors.success,
         borderWidth: 1,
     },
     connectedHeader: {
@@ -393,29 +381,25 @@ const styles = StyleSheet.create({
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: colors.success,
+        backgroundColor: '#10b981',
         marginRight: 8,
     },
     connectedTitle: {
-        color: colors.success,
         fontWeight: 'bold',
         fontSize: 14,
     },
     connectedCode: {
-        color: colors.textPrimary,
         fontSize: 32,
         fontWeight: 'bold',
         letterSpacing: 3,
         marginBottom: layout.spacing.md,
     },
     connectedHint: {
-        color: colors.textSecondary,
         textAlign: 'center',
         marginBottom: layout.spacing.xl,
     },
     viewButton: {
         width: '100%',
-        backgroundColor: colors.success,
     },
     disconnectButton: {
         width: '100%',

@@ -16,6 +16,7 @@ import { remoteControlService } from '../services/RemoteControlService';
 import { sessionManager } from '../services/SessionManager';
 import { ScreenContainer, Card, Button } from '../components/ui';
 import { colors, layout, typography } from '../theme/designSystem';
+import { useTheme } from '../context/ThemeContext';
 
 interface SessionScreenProps {
     route: {
@@ -31,6 +32,7 @@ interface SessionScreenProps {
 type SessionStatus = 'initializing' | 'connecting' | 'connected' | 'streaming' | 'error';
 
 const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
+    const { theme, colors } = useTheme();
     const { sessionId, guestId } = route.params;
 
     const [status, setStatus] = useState<SessionStatus>('initializing');

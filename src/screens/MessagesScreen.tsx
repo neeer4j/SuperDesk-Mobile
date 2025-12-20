@@ -29,8 +29,7 @@ interface Conversation {
 }
 
 const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
-    // We rely on designSystem colors, but can check theme if needed for toggles
-    const { theme } = useTheme();
+    const { theme, colors } = useTheme();
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);

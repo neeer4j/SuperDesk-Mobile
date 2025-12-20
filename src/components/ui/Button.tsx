@@ -7,7 +7,8 @@ import {
     ViewStyle,
     TextStyle,
 } from 'react-native';
-import { colors, layout, typography } from '../../theme/designSystem';
+import { layout, typography } from '../../theme/designSystem';
+import { useTheme } from '../../context/ThemeContext';
 
 interface ButtonProps {
     title: string;
@@ -32,13 +33,15 @@ export const Button: React.FC<ButtonProps> = ({
     textStyle,
     icon,
 }) => {
+    const { colors } = useTheme();
+
     const getBackgroundColor = () => {
-        if (disabled) return colors.surfaceHighlight;
+        if (disabled) return colors.border;
         switch (variant) {
             case 'primary':
                 return colors.primary;
             case 'secondary':
-                return colors.surfaceHighlight;
+                return colors.border;
             case 'danger':
                 return colors.error;
             case 'ghost':
@@ -49,13 +52,13 @@ export const Button: React.FC<ButtonProps> = ({
     };
 
     const getTextColor = () => {
-        if (disabled) return colors.textTertiary;
+        if (disabled) return colors.subText;
         switch (variant) {
             case 'primary':
             case 'danger':
                 return '#ffffff';
             case 'secondary':
-                return colors.textPrimary;
+                return colors.text;
             case 'ghost':
                 return colors.primary;
             default:
