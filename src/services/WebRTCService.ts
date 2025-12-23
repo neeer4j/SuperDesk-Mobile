@@ -118,19 +118,28 @@ class WebRTCService {
         // Fetch TURN/STUN config from server
         const iceServers = await fetchWebRTCConfig();
 
-        // Create peer connection with optimal config
+        // Create peer connection with optimal config for low latency
         const config = {
             iceServers,
             iceTransportPolicy: 'all',
             bundlePolicy: 'max-bundle',
             rtcpMuxPolicy: 'require',
+            iceCandidatePoolSize: 10,  // Pre-gather candidates for faster connection
         };
 
         this.peerConnection = new RTCPeerConnection(config as any);
 
-        // Handle ICE candidates
+        // Handle ICE candidates with logging
         (this.peerConnection as any).onicecandidate = (event: RTCIceCandidateEvent) => {
             if (event.candidate && this.sessionId) {
+                // Log candidate type for debugging connection quality
+                const candidateStr = event.candidate.candidate || '';
+                let type = 'unknown';
+                if (candidateStr.includes('typ host')) type = 'host (direct)';
+                else if (candidateStr.includes('typ srflx')) type = 'srflx (STUN)';
+                else if (candidateStr.includes('typ relay')) type = 'relay (TURN)';
+                console.log(`📱 ICE candidate: ${type}`);
+
                 socketService.sendIceCandidate(this.sessionId, event.candidate.toJSON());
             }
         };
@@ -404,15 +413,15 @@ class WebRTCService {
 
                         params.encodings[0] = {
                             ...params.encodings[0],
-                            maxBitrate: 1500000,  // 1.5 Mbps - reduced for faster encoding
-                            maxFramerate: 15,     // 15fps - lower framerate = less latency
+                            maxBitrate: 2500000,  // 2.5 Mbps - hardware encoding can handle more
+                            maxFramerate: 30,     // 30fps - hardware encoding is fast enough
                             // Priority for low latency
                             priority: 'high',
                             networkPriority: 'high',
                         };
 
-                        // Allow quality reduction for lower latency
-                        params.degradationPreference = 'balanced';
+                        // Maintain framerate for lower perceived latency (hardware can handle it)
+                        params.degradationPreference = 'maintain-framerate';
 
                         await sender.setParameters(params);
                         console.log('📱 ✅ Low-latency encoding configured:', {
@@ -470,9 +479,9 @@ class WebRTCService {
             console.log('📱 Calling mediaDevices.getDisplayMedia...');
             const stream = await (mediaDevices as any).getDisplayMedia({
                 video: {
-                    // Lower resolution for reduced latency
-                    frameRate: { ideal: 15, max: 30 },
-                    width: { ideal: 720, max: 1280 },   // 720p for less encoding overhead
+                    // 720p at 30fps - hardware encoding can handle this with low latency
+                    frameRate: { ideal: 30, max: 30 },
+                    width: { ideal: 720, max: 1280 },   // 720p for good balance
                     height: { ideal: 1280, max: 1920 }, // Portrait mode for mobile
                 },
                 audio: false,
