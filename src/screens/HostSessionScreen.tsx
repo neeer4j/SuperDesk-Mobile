@@ -9,6 +9,7 @@ import {
     Alert,
     ActivityIndicator,
     ScrollView,
+    Image,
 } from 'react-native';
 import { SettingsIcon } from '../components/Icons';
 import { sessionManager, SessionState } from '../services/SessionManager';
@@ -210,7 +211,11 @@ const HostSessionScreen: React.FC<HostSessionScreenProps> = ({ navigation }) => 
         <ScreenContainer withScroll>
             {/* Header */}
             <View style={styles.header}>
-                <Text style={[styles.logo, { color: colors.text }]}>SuperDesk</Text>
+                <Image
+                    source={theme === 'dark' ? require('../assets/superdeskw.png') : require('../assets/superdesk.png')}
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                />
                 <Button
                     title=""
                     variant="ghost"
@@ -344,9 +349,9 @@ const styles = StyleSheet.create({
         paddingVertical: layout.spacing.md,
         marginBottom: layout.spacing.md,
     },
-    logo: {
-        fontFamily: typography.fontFamily.bold,
-        fontSize: typography.size.xl,
+    logoImage: {
+        width: 200,
+        height: 54,
     },
     settingsButton: {
         padding: 0,

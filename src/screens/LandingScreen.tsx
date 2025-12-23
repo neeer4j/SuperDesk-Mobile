@@ -10,6 +10,7 @@ import {
     StyleSheet,
     ActivityIndicator,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/Navigation';
@@ -33,9 +34,12 @@ const LandingScreen = () => {
         isLoading: true,
     });
 
-    // Simple fade-in animation
+    // Enhanced animations
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(20)).current;
+    const slideAnim = useRef(new Animated.Value(30)).current;
+    const scaleAnim = useRef(new Animated.Value(0.9)).current;
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+    const rotateAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         checkAuthStatus();
@@ -43,20 +47,55 @@ const LandingScreen = () => {
 
     useEffect(() => {
         if (!userState.isLoading) {
+            // Logo and content entrance
             Animated.parallel([
                 Animated.timing(fadeAnim, {
                     toValue: 1,
-                    duration: 600,
+                    duration: 800,
                     easing: Easing.out(Easing.cubic),
                     useNativeDriver: true,
                 }),
-                Animated.timing(slideAnim, {
+                Animated.spring(slideAnim, {
                     toValue: 0,
-                    duration: 600,
-                    easing: Easing.out(Easing.cubic),
+                    tension: 40,
+                    friction: 7,
+                    useNativeDriver: true,
+                }),
+                Animated.spring(scaleAnim, {
+                    toValue: 1,
+                    tension: 40,
+                    friction: 7,
                     useNativeDriver: true,
                 }),
             ]).start();
+
+            // Pulsing button animation
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, {
+                        toValue: 1.05,
+                        duration: 1500,
+                        easing: Easing.inOut(Easing.ease),
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(pulseAnim, {
+                        toValue: 1,
+                        duration: 1500,
+                        easing: Easing.inOut(Easing.ease),
+                        useNativeDriver: true,
+                    }),
+                ])
+            ).start();
+
+            // Slow rotation for decorative element
+            Animated.loop(
+                Animated.timing(rotateAnim, {
+                    toValue: 1,
+                    duration: 20000,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                })
+            ).start();
         }
     }, [userState.isLoading]);
 
@@ -95,7 +134,6 @@ const LandingScreen = () => {
         navigation.navigate('MainTabs');
     };
 
-    // Get first letter for avatar placeholder
     const getAvatarLetter = () => {
         if (userState.profile?.username) {
             return userState.profile.username.charAt(0).toUpperCase();
@@ -106,13 +144,17 @@ const LandingScreen = () => {
         return '?';
     };
 
-    // Generate a consistent color based on the username
     const getAvatarColor = () => {
         const avatarColors = ['#6366f1', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#10b981'];
         const name = userState.profile?.username || userState.profile?.email || '';
         const index = name.charCodeAt(0) % avatarColors.length;
         return avatarColors[index] || avatarColors[0];
     };
+
+    const spin = rotateAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg'],
+    });
 
     if (userState.isLoading) {
         return (
@@ -133,6 +175,26 @@ const LandingScreen = () => {
                 backgroundColor={colors.background}
             />
 
+            {/* Decorative background circles */}
+            <Animated.View
+                style={[
+                    styles.decorativeCircle1,
+                    {
+                        backgroundColor: colors.primary,
+                        transform: [{ rotate: spin }],
+                    }
+                ]}
+            />
+            <Animated.View
+                style={[
+                    styles.decorativeCircle2,
+                    {
+                        backgroundColor: colors.primary,
+                        transform: [{ rotate: spin }],
+                    }
+                ]}
+            />
+
             {userState.isLoggedIn && userState.profile ? (
                 /* ===== LOGGED IN LAYOUT ===== */
                 <>
@@ -141,21 +203,32 @@ const LandingScreen = () => {
                             styles.centeredContent,
                             {
                                 opacity: fadeAnim,
-                                transform: [{ translateY: slideAnim }],
+                                transform: [
+                                    { translateY: slideAnim },
+                                    { scale: scaleAnim }
+                                ],
                             },
                         ]}
                     >
-                        {/* Avatar */}
-                        {userState.profile.avatar_url ? (
-                            <Image
-                                source={{ uri: userState.profile.avatar_url }}
-                                style={styles.avatarLarge}
-                            />
-                        ) : (
-                            <View style={[styles.avatarPlaceholderLarge, { backgroundColor: getAvatarColor() }]}>
-                                <Text style={styles.avatarLetterLarge}>{getAvatarLetter()}</Text>
-                            </View>
-                        )}
+                        {/* Avatar with enhanced styling */}
+                        <View style={styles.avatarContainer}>
+                            {userState.profile.avatar_url ? (
+                                <Image
+                                    source={{ uri: userState.profile.avatar_url }}
+                                    style={styles.avatarLarge}
+                                />
+                            ) : (
+                                <LinearGradient
+                                    colors={[getAvatarColor(), getAvatarColor() + 'CC']}
+                                    style={styles.avatarPlaceholderLarge}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                >
+                                    <Text style={styles.avatarLetterLarge}>{getAvatarLetter()}</Text>
+                                </LinearGradient>
+                            )}
+                            <View style={[styles.avatarRing, { borderColor: colors.primary }]} />
+                        </View>
 
                         {/* User Info */}
                         <Text style={[styles.welcomeText, { color: colors.subText }]}>Welcome back,</Text>
@@ -164,14 +237,23 @@ const LandingScreen = () => {
                             <Text style={[styles.emailMain, { color: colors.subText }]}>{userState.profile.email}</Text>
                         )}
 
-                        {/* Continue Button */}
-                        <TouchableOpacity
-                            style={[styles.buttonWide, { backgroundColor: colors.primary }]}
-                            onPress={handleContinue}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.buttonText}>Continue</Text>
-                        </TouchableOpacity>
+                        {/* Enhanced Continue Button */}
+                        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                            <TouchableOpacity
+                                style={styles.buttonContainer}
+                                onPress={handleContinue}
+                                activeOpacity={0.9}
+                            >
+                                <LinearGradient
+                                    colors={[colors.primary, colors.primary + 'DD']}
+                                    style={styles.buttonWide}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                >
+                                    <Text style={styles.buttonText}>Continue</Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
+                        </Animated.View>
 
                         {/* Switch Account Option */}
                         <TouchableOpacity
@@ -185,8 +267,11 @@ const LandingScreen = () => {
 
                     {/* Footer with branding */}
                     <View style={styles.footerBranding}>
-                        <Text style={[styles.footerAppName, { color: colors.text }]}>SuperDesk</Text>
-                        <Text style={[styles.footerTagline, { color: colors.subText }]}>Remote desktop, simplified.</Text>
+                        <Image
+                            source={theme === 'dark' ? require('../assets/superdeskw.png') : require('../assets/superdesk.png')}
+                            style={styles.footerLogo}
+                            resizeMode="contain"
+                        />
                         <Text style={[styles.versionText, { color: colors.subText }]}>v1.0</Text>
                     </View>
                 </>
@@ -198,33 +283,52 @@ const LandingScreen = () => {
                             styles.centeredContent,
                             {
                                 opacity: fadeAnim,
-                                transform: [{ translateY: slideAnim }],
+                                transform: [
+                                    { translateY: slideAnim },
+                                    { scale: scaleAnim }
+                                ],
                             },
                         ]}
                     >
-                        {/* Logo */}
+                        {/* Logo with glow effect */}
+                        <View style={styles.logoContainer}>
+                            <View style={[styles.logoGlow, { backgroundColor: colors.primary }]} />
+                            <Image
+                                source={require('../assets/supp.png')}
+                                style={styles.logoLarge}
+                                resizeMode="contain"
+                            />
+                        </View>
+
+                        {/* App Name/Logo */}
                         <Image
-                            source={require('../assets/supp.png')}
-                            style={styles.logoLarge}
+                            source={theme === 'dark' ? require('../assets/superdeskw.png') : require('../assets/superdesk.png')}
+                            style={styles.logoText}
                             resizeMode="contain"
                         />
-
-                        {/* App Name */}
-                        <Text style={[styles.appNameLarge, { color: colors.text }]}>SuperDesk</Text>
 
                         {/* Tagline */}
                         <Text style={[styles.taglineMain, { color: colors.subText }]}>
                             Remote desktop, simplified.
                         </Text>
 
-                        {/* Get Started Button */}
-                        <TouchableOpacity
-                            style={[styles.buttonWide, { backgroundColor: colors.primary }]}
-                            onPress={handleGetStarted}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.buttonText}>Get Started</Text>
-                        </TouchableOpacity>
+                        {/* Enhanced Get Started Button */}
+                        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                            <TouchableOpacity
+                                style={styles.buttonContainer}
+                                onPress={handleGetStarted}
+                                activeOpacity={0.9}
+                            >
+                                <LinearGradient
+                                    colors={[colors.primary, colors.primary + 'DD']}
+                                    style={styles.buttonWide}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                >
+                                    <Text style={styles.buttonText}>Get Started</Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
+                        </Animated.View>
                     </Animated.View>
 
                     {/* Version Footer */}
@@ -241,106 +345,170 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: layout.spacing.xl,
+        overflow: 'hidden',
     },
     centeredContent: {
         alignItems: 'center',
         justifyContent: 'center',
+        zIndex: 1,
+    },
+    // Decorative elements
+    decorativeCircle1: {
+        position: 'absolute',
+        width: 300,
+        height: 300,
+        borderRadius: 150,
+        top: -150,
+        right: -100,
+        opacity: 0.05,
+    },
+    decorativeCircle2: {
+        position: 'absolute',
+        width: 200,
+        height: 200,
+        borderRadius: 100,
+        bottom: -80,
+        left: -60,
+        opacity: 0.08,
     },
     // ===== LOGGED IN STYLES =====
-    avatarLarge: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
+    avatarContainer: {
+        position: 'relative',
         marginBottom: layout.spacing.lg,
+    },
+    avatarLarge: {
+        width: 110,
+        height: 110,
+        borderRadius: 55,
+        borderWidth: 4,
+        borderColor: '#FFFFFF',
     },
     avatarPlaceholderLarge: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
+        width: 110,
+        height: 110,
+        borderRadius: 55,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: layout.spacing.lg,
+        borderWidth: 4,
+        borderColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 10,
+    },
+    avatarRing: {
+        position: 'absolute',
+        width: 126,
+        height: 126,
+        borderRadius: 63,
+        borderWidth: 2,
+        top: -8,
+        left: -8,
+        opacity: 0.3,
     },
     avatarLetterLarge: {
-        fontSize: 40,
+        fontSize: 44,
         fontFamily: typography.fontFamily.bold,
         color: '#FFFFFF',
     },
     welcomeText: {
-        fontSize: typography.size.sm,
+        fontSize: typography.size.md,
         fontFamily: typography.fontFamily.regular,
         marginBottom: layout.spacing.xs,
+        opacity: 0.8,
     },
     usernameMain: {
-        fontSize: typography.size.xl,
+        fontSize: typography.size.xxl,
         fontFamily: typography.fontFamily.bold,
         marginBottom: layout.spacing.xs,
     },
     emailMain: {
         fontSize: typography.size.sm,
         fontFamily: typography.fontFamily.regular,
-        marginBottom: layout.spacing.xl,
+        marginBottom: layout.spacing.xxl,
+        opacity: 0.7,
+    },
+    buttonContainer: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 8,
     },
     buttonWide: {
-        paddingHorizontal: 60,
-        paddingVertical: layout.spacing.md,
-        borderRadius: layout.borderRadius.lg,
+        paddingHorizontal: 64,
+        paddingVertical: 16,
+        borderRadius: 30,
         marginTop: layout.spacing.md,
     },
     buttonText: {
         color: '#FFFFFF',
         fontSize: typography.size.md,
-        fontFamily: typography.fontFamily.semiBold,
+        fontFamily: typography.fontFamily.bold,
+        textAlign: 'center',
+        letterSpacing: 0.5,
     },
     switchAccountButton: {
-        marginTop: layout.spacing.lg,
+        marginTop: layout.spacing.xl,
         padding: layout.spacing.sm,
     },
     switchAccountText: {
         fontSize: typography.size.sm,
-        fontFamily: typography.fontFamily.regular,
+        fontFamily: typography.fontFamily.medium,
+        opacity: 0.7,
     },
     footerBranding: {
         position: 'absolute',
         bottom: layout.spacing.xl,
         alignItems: 'center',
     },
-    footerAppName: {
-        fontSize: typography.size.md,
-        fontFamily: typography.fontFamily.semiBold,
-        marginBottom: 4,
-    },
-    footerTagline: {
-        fontSize: typography.size.sm,
-        fontFamily: typography.fontFamily.regular,
+    footerLogo: {
+        width: 225,
+        height: 62,
         marginBottom: layout.spacing.sm,
+        opacity: 0.9,
     },
     versionText: {
         fontSize: typography.size.xs,
         fontFamily: typography.fontFamily.regular,
+        opacity: 0.5,
     },
     // ===== NOT LOGGED IN STYLES =====
-    logoLarge: {
-        width: 120,
-        height: 120,
+    logoContainer: {
+        position: 'relative',
         marginBottom: layout.spacing.xl,
     },
-    appNameLarge: {
-        fontSize: 36,
-        fontFamily: typography.fontFamily.bold,
-        letterSpacing: -0.5,
-        marginBottom: layout.spacing.sm,
+    logoLarge: {
+        width: 130,
+        height: 130,
+    },
+    logoGlow: {
+        position: 'absolute',
+        width: 140,
+        height: 140,
+        borderRadius: 70,
+        opacity: 0.15,
+        top: -5,
+        left: -5,
+    },
+    logoText: {
+        width: 220,
+        height: 60,
+        marginBottom: layout.spacing.md,
     },
     taglineMain: {
-        fontSize: typography.size.md,
-        fontFamily: typography.fontFamily.regular,
+        fontSize: typography.size.lg,
+        fontFamily: typography.fontFamily.medium,
         marginBottom: layout.spacing.xxl,
+        opacity: 0.8,
     },
     versionFooter: {
         position: 'absolute',
         bottom: layout.spacing.xl,
         fontSize: typography.size.xs,
         fontFamily: typography.fontFamily.regular,
+        opacity: 0.5,
     },
 });
 

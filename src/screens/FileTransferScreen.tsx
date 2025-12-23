@@ -12,6 +12,7 @@ import {
     PermissionsAndroid,
     Platform,
     Modal,
+    Image,
 } from 'react-native';
 import DocumentPicker from 'react-native-document-picker';
 import { SettingsIcon, FileTransferIcon } from '../components/Icons';
@@ -325,7 +326,11 @@ const FileTransferScreen: React.FC<FileTransferScreenProps> = ({ navigation }) =
             {/* Header */}
             <View style={styles.header}>
                 <View style={styles.headerLeft}>
-                    <Text style={[styles.logo, { color: colors.textPrimary }]}>File Transfer</Text>
+                    <Image
+                        source={theme === 'dark' ? require('../assets/superdeskw.png') : require('../assets/superdesk.png')}
+                        style={styles.logoImage}
+                        resizeMode="contain"
+                    />
                     <View style={styles.connectionStatus}>
                         <View style={[
                             styles.connectionDot,
@@ -522,9 +527,10 @@ const styles = StyleSheet.create({
     headerLeft: {
         flex: 1,
     },
-    logo: {
-        fontFamily: typography.fontFamily.bold,
-        fontSize: typography.size.xl,
+    logoImage: {
+        width: 200,
+        height: 54,
+        marginBottom: 8,
     },
     connectionStatus: {
         flexDirection: 'row',

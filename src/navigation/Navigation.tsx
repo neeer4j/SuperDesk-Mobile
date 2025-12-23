@@ -212,16 +212,18 @@ const Navigation: React.FC = () => {
                 }}
                 initialRouteName="Landing"
             >
-                {/* Landing screen always shows first */}
+                {/* Landing screen - shows first, handles both logged in and logged out states */}
                 <Stack.Screen name="Landing" component={LandingScreen} />
 
-                {!isAuthenticated ? (
-                    <>
-                        <Stack.Screen name="Login">
-                            {(props) => <LoginScreen {...props} onLogin={handleLogin} />}
-                        </Stack.Screen>
-                    </>
-                ) : (
+                {/* Login screen - only available when not authenticated */}
+                {!isAuthenticated && (
+                    <Stack.Screen name="Login">
+                        {(props) => <LoginScreen {...props} onLogin={handleLogin} />}
+                    </Stack.Screen>
+                )}
+
+                {/* Main app screens - only available when authenticated */}
+                {isAuthenticated && (
                     <>
                         <Stack.Screen name="MainTabs" component={TabNavigator} />
                         <Stack.Screen

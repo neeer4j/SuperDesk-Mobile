@@ -1,5 +1,5 @@
 // Login Screen - OTP Authentication matching Desktop design
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     KeyboardAvoidingView,
     Platform,
@@ -11,7 +11,10 @@ import {
     ScrollView,
     ActivityIndicator,
     StyleSheet,
+    Animated,
+    Easing,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { authService } from '../services/supabaseClient';
 import { useTheme } from '../context/ThemeContext';
 import { VStack, Input, Button, Heading } from '../components/ui';
@@ -40,9 +43,44 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
+    // Animations
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(0.95)).current;
+    const rotateAnim = useRef(new Animated.Value(0)).current;
+
     useEffect(() => {
         checkExistingSession();
     }, []);
+
+    useEffect(() => {
+        if (!isLoading) {
+            // Entrance animation
+            Animated.parallel([
+                Animated.timing(fadeAnim, {
+                    toValue: 1,
+                    duration: 600,
+                    easing: Easing.out(Easing.cubic),
+                    useNativeDriver: true,
+                }),
+                Animated.spring(scaleAnim, {
+                    toValue: 1,
+                    tension: 40,
+                    friction: 7,
+                    useNativeDriver: true,
+                }),
+            ]).start();
+
+            // Rotate decorative elements
+            Animated.loop(
+                Animated.timing(rotateAnim, {
+                    toValue: 1,
+                    duration: 25000,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                })
+            ).start();
+        }
+    }, [isLoading]);
 
     const checkExistingSession = async () => {
         try {
@@ -90,18 +128,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
         setIsSubmitting(true);
         try {
             await authService.verifyOTP(email, otpCode);
-            const profile = await authService.getUserProfile();
-            if (profile) {
-                setUserProfile({
-                    username: profile.username,
-                    avatar_url: profile.avatar_url,
-                    email: profile.email,
-                    display_name: profile.display_name,
-                });
-                setStep('welcome');
-            } else {
-                onLogin();
-            }
+            // After successful OTP verification, trigger login which will navigate to MainTabs
+            onLogin();
         } catch (error: any) {
             Alert.alert('Error', error.message || 'Invalid verification code');
         } finally {
@@ -205,13 +233,57 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
                     barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
                     backgroundColor={colors.background}
                 />
+
+                {/* Decorative background circles */}
+                <Animated.View
+                    style={[
+                        styles.decorativeCircle1,
+                        {
+                            backgroundColor: colors.primary,
+                            transform: [{
+                                rotate: rotateAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: ['0deg', '360deg'],
+                                })
+                            }],
+                        }
+                    ]}
+                />
+                <Animated.View
+                    style={[
+                        styles.decorativeCircle2,
+                        {
+                            backgroundColor: colors.primary,
+                            transform: [{
+                                rotate: rotateAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: ['360deg', '0deg'],
+                                })
+                            }],
+                        }
+                    ]}
+                />
+
                 <ScrollView contentContainerStyle={styles.scrollContent}>
-                    <View style={styles.formContainer}>
-                        {/* Header */}
+                    <Animated.View
+                        style={[
+                            styles.formContainer,
+                            {
+                                opacity: fadeAnim,
+                                transform: [{ scale: scaleAnim }],
+                            }
+                        ]}
+                    >
+                        {/* Header with enhanced logo */}
                         <VStack spacing="sm" align="center" style={styles.header}>
-                            <Heading size="4xl" color={colors.text} style={styles.letterSpacing}>
-                                SuperDesk
-                            </Heading>
+                            <View style={styles.logoHeaderContainer}>
+                                <View style={[styles.logoHeaderGlow, { backgroundColor: colors.primary }]} />
+                                <Image
+                                    source={theme === 'dark' ? require('../assets/superdeskw.png') : require('../assets/superdesk.png')}
+                                    style={styles.logoHeader}
+                                    resizeMode="contain"
+                                />
+                            </View>
                             <Text
                                 style={[
                                     styles.headerSubtext,
@@ -222,14 +294,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
                             </Text>
                         </VStack>
 
-                        {/* Card */}
+                        {/* Enhanced Card */}
                         <View
                             style={[
                                 styles.card,
                                 {
                                     backgroundColor: colors.card,
                                     borderColor: colors.cardBorder,
-                                    shadowColor: theme === 'light' ? '#000' : 'transparent',
+                                    shadowColor: theme === 'light' ? '#000' : colors.primary,
                                 },
                             ]}
                         >
@@ -300,7 +372,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
                                 </VStack>
                             )}
                         </View>
-                    </View>
+                    </Animated.View>
                 </ScrollView>
             </View>
         </KeyboardAvoidingView>
@@ -313,6 +385,7 @@ const styles = StyleSheet.create({
     },
     container: {
         flex: 1,
+        overflow: 'hidden',
     },
     loadingContainer: {
         flex: 1,
@@ -335,6 +408,22 @@ const styles = StyleSheet.create({
     header: {
         marginBottom: layout.spacing.xxl,
     },
+    logoHeaderContainer: {
+        position: 'relative',
+    },
+    logoHeader: {
+        width: 190,
+        height: 52,
+    },
+    logoHeaderGlow: {
+        position: 'absolute',
+        width: 200,
+        height: 62,
+        borderRadius: 31,
+        opacity: 0.12,
+        top: -5,
+        left: -5,
+    },
     headerSubtext: {
         fontSize: typography.size.sm,
         marginTop: layout.spacing.sm,
@@ -343,12 +432,12 @@ const styles = StyleSheet.create({
     },
     card: {
         padding: layout.spacing.xl,
-        borderRadius: layout.borderRadius.lg,
+        borderRadius: 20,
         borderWidth: 1,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 3,
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+        elevation: 6,
     },
     profileCard: {
         padding: layout.spacing.xxl,
@@ -400,6 +489,27 @@ const styles = StyleSheet.create({
     },
     switchButton: {
         marginTop: layout.spacing.md,
+    },
+    // Decorative elements
+    decorativeCircle1: {
+        position: 'absolute',
+        width: 250,
+        height: 250,
+        borderRadius: 125,
+        top: -100,
+        right: -80,
+        opacity: 0.04,
+        zIndex: 0,
+    },
+    decorativeCircle2: {
+        position: 'absolute',
+        width: 180,
+        height: 180,
+        borderRadius: 90,
+        bottom: -60,
+        left: -50,
+        opacity: 0.06,
+        zIndex: 0,
     },
 });
 

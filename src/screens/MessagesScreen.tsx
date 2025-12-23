@@ -154,7 +154,11 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
         <ScreenContainer withScroll={false}>
             {/* Header */}
             <View style={styles.header}>
-                <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Messages</Text>
+                <Image
+                    source={theme === 'dark' ? require('../assets/superdeskw.png') : require('../assets/superdesk.png')}
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                />
                 <TouchableOpacity
                     style={styles.settingsButton}
                     onPress={() => navigation.navigate('Settings')}
@@ -204,9 +208,9 @@ const styles = StyleSheet.create({
         paddingVertical: layout.spacing.md,
         marginBottom: layout.spacing.sm,
     },
-    headerTitle: {
-        fontFamily: typography.fontFamily.bold,
-        fontSize: typography.size.xl,
+    logoImage: {
+        width: 200,
+        height: 54,
     },
     settingsButton: {
         padding: 4,

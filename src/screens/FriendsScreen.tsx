@@ -195,7 +195,11 @@ const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
         <ScreenContainer>
             {/* Header */}
             <View style={styles.header}>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>Friends</Text>
+                <Image
+                    source={theme === 'dark' ? require('../assets/superdeskw.png') : require('../assets/superdesk.png')}
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                />
                 <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
                     <SettingsIcon size={24} color={colors.subText} />
                 </TouchableOpacity>
@@ -274,9 +278,9 @@ const styles = StyleSheet.create({
         paddingVertical: layout.spacing.md,
         marginBottom: layout.spacing.md,
     },
-    headerTitle: {
-        fontSize: typography.size.xl,
-        fontFamily: typography.fontFamily.bold,
+    logoImage: {
+        width: 200,
+        height: 54,
     },
     addFriendContainer: {
         flexDirection: 'row',
