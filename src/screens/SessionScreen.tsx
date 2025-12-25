@@ -31,6 +31,8 @@ interface SessionScreenProps {
 
 type SessionStatus = 'initializing' | 'connecting' | 'connected' | 'streaming' | 'error';
 
+const DRAG_THRESHOLD = 0.02;
+
 const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
     const { theme, colors } = useTheme();
     const { sessionId, guestId } = route.params;
@@ -42,6 +44,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
     const [accessibilityEnabled, setAccessibilityEnabled] = useState(false);
 
     const cleanupRef = useRef(false);
+    const dragStateRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
 
     useEffect(() => {
         checkAccessibilityService();
@@ -57,13 +60,13 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
         };
         sessionManager.on('sessionEnded', handleSessionEnded);
 
+
         // socketService mouse events... (same logic as before)
         // [Existing socket logic truncated for brevity as it is functional and not UI]
         // Keeping it intact in actual implementation, just wrapping in (...) for this visual update
         // RE-INSERTING EXACT LOGIC BELOW
 
-        let dragState: { startX: number; startY: number; startTime: number } | null = null;
-        const DRAG_THRESHOLD = 0.02;
+
 
         // ... (socket event listeners same as original)
         socketService.onMouseEvent(async (data) => {
@@ -73,31 +76,29 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
                 if (!accessibilityOk) return;
 
                 if (data.type === 'down') {
-                    dragState = { startX: data.x, startY: data.y, startTime: Date.now() };
+                    dragStateRef.current = { startX: data.x, startY: data.y, startTime: Date.now() };
                     return;
                 }
-                if (data.type === 'move' && dragState) return;
+                if (data.type === 'move' && dragStateRef.current) return;
 
-                if (data.type === 'up' && dragState) {
-                    const deltaX = data.x - dragState.startX;
-                    const deltaY = data.y - dragState.startY;
-                    const distance = Math.sqrt(deltaX * deltaX + deltaX * deltaX); // bug in original? deltaX*deltaX + deltaY*deltaY
-                    // correcting:
-                    const distCheck = Math.sqrt(deltaX * deltaX + deltaX * deltaX);
-                    const elapsed = Date.now() - dragState.startTime;
+                if (data.type === 'up' && dragStateRef.current) {
+                    const deltaX = data.x - dragStateRef.current.startX;
+                    const deltaY = data.y - dragStateRef.current.startY;
+                    const distCheck = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    const elapsed = Date.now() - dragStateRef.current.startTime;
 
                     if (distCheck > DRAG_THRESHOLD) {
                         await remoteControlService.handleRemoteInputEvent({
                             type: 'mouse', action: 'swipe',
-                            data: { startX: dragState.startX, startY: dragState.startY, endX: data.x, endY: data.y, duration: Math.min(elapsed, 500) },
+                            data: { startX: dragStateRef.current.startX, startY: dragStateRef.current.startY, endX: data.x, endY: data.y, duration: Math.min(elapsed, 500) },
                         });
                     } else {
                         await remoteControlService.handleRemoteInputEvent({
                             type: 'mouse', action: 'click',
-                            data: { x: dragState.startX, y: dragState.startY, button: data.button || 0 },
+                            data: { x: dragStateRef.current.startX, y: dragStateRef.current.startY, button: data.button || 0 },
                         });
                     }
-                    dragState = null;
+                    dragStateRef.current = null;
                     return;
                 }
                 if (data.type === 'scroll') {
@@ -158,7 +159,6 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
 
             // Re-adding data channel listener logic from original file...
             webRTCService.onDataChannelMessage(async (message: string) => {
-                // ... (existing logic)
                 try {
                     const event = JSON.parse(message);
                     if (event.type === 'mouse' || event.type === 'touch') {
@@ -167,14 +167,30 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
                         const accessibilityOk = await remoteControlService.isServiceEnabled();
                         if (!accessibilityOk) return;
 
-                        // Simple passthrough for now to save space in this refactor, 
-                        // assuming functionality is same as original
-                        if (action === 'click' || action === 'tap') {
-                            await remoteControlService.handleRemoteInputEvent({ type: 'mouse', action: 'click', data });
-                        } else if (action === 'wheel' || action === 'scroll') {
+                        // Hand over to the same logic used by socket
+                        // but we need to map the fields slightly if they differ
+                        if (action === 'down') {
+                            dragStateRef.current = { startX: data.x, startY: data.y, startTime: Date.now() };
+                        } else if (action === 'up' && dragStateRef.current) {
+                            const deltaX = data.x - dragStateRef.current.startX;
+                            const deltaY = data.y - dragStateRef.current.startY;
+                            const distCheck = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                            const elapsed = Date.now() - dragStateRef.current.startTime;
+
+                            if (distCheck > DRAG_THRESHOLD) {
+                                await remoteControlService.handleRemoteInputEvent({
+                                    type: 'mouse', action: 'swipe',
+                                    data: { startX: dragStateRef.current.startX, startY: dragStateRef.current.startY, endX: data.x, endY: data.y, duration: Math.min(elapsed, 500) },
+                                });
+                            } else {
+                                await remoteControlService.handleRemoteInputEvent({
+                                    type: 'mouse', action: 'click',
+                                    data: { x: dragStateRef.current.startX, y: dragStateRef.current.startY, button: data.button || 0 },
+                                });
+                            }
+                            dragStateRef.current = null;
+                        } else if ((action === 'wheel' || action === 'scroll')) {
                             await remoteControlService.handleRemoteInputEvent({ type: 'mouse', action: 'wheel', data });
-                        } else if (action === 'swipe') {
-                            await remoteControlService.handleRemoteInputEvent({ type: 'mouse', action: 'swipe', data });
                         }
                     } else if (event.type === 'keyboard') {
                         await remoteControlService.handleRemoteInputEvent(event);

@@ -1,31 +1,34 @@
 package com.superdeskmobile.remotecontrol
 
-import android.content.Context
-import android.content.Intent
-import android.os.Build
 import android.provider.Settings
+import android.content.Context
+import android.util.Log
 import com.facebook.react.bridge.*
+import android.os.Build
+import android.content.Intent
 
-/**
- * React Native bridge module for the Remote Control Accessibility Service.
- * Exposes methods to check service status and send control commands.
- */
 class RemoteControlModule(reactContext: ReactApplicationContext) : 
     ReactContextBaseJavaModule(reactContext) {
 
     override fun getName(): String = "RemoteControlModule"
 
-    /**
-     * Check if the accessibility service is enabled.
-     */
-    @ReactMethod
-    fun isServiceEnabled(promise: Promise) {
-        promise.resolve(RemoteControlAccessibilityService.isServiceEnabled())
+    private fun isEnabledInSettings(): Boolean {
+        val context = reactApplicationContext
+        val enabledServices = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: ""
+        return enabledServices.contains(context.packageName)
     }
 
-    /**
-     * Open Android Accessibility Settings so user can enable the service.
-     */
+    @ReactMethod
+    fun isServiceEnabled(promise: Promise) {
+        val active = RemoteControlAccessibilityService.isServiceEnabled()
+        val enabled = isEnabledInSettings()
+        Log.i("RemoteControlModule", "isServiceEnabled: active=$active, enabled=$enabled")
+        promise.resolve(active || enabled)
+    }
+
     @ReactMethod
     fun openAccessibilitySettings(promise: Promise) {
         try {
@@ -38,9 +41,6 @@ class RemoteControlModule(reactContext: ReactApplicationContext) :
         }
     }
 
-    /**
-     * Get current screen dimensions.
-     */
     @ReactMethod
     fun getScreenDimensions(promise: Promise) {
         val result = Arguments.createMap()
@@ -49,64 +49,39 @@ class RemoteControlModule(reactContext: ReactApplicationContext) :
         promise.resolve(result)
     }
 
-    /**
-     * Perform a tap at normalized coordinates (0.0-1.0).
-     */
+    private fun checkServiceStatus(): String? {
+        if (RemoteControlAccessibilityService.isServiceEnabled()) return null
+        if (isEnabledInSettings()) return "SERVICE_STARTING"
+        return "SERVICE_DISABLED"
+    }
+
     @ReactMethod
     fun performTap(x: Double, y: Double, promise: Promise) {
-        if (!RemoteControlAccessibilityService.isServiceEnabled()) {
+        val status = checkServiceStatus()
+        if (status == "SERVICE_DISABLED") {
             promise.reject("SERVICE_DISABLED", "Accessibility service is not enabled")
             return
         }
-        
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-            promise.reject("UNSUPPORTED", "Gesture injection requires Android 7.0+")
-            return
-        }
-        
         val success = RemoteControlAccessibilityService.performTap(x.toFloat(), y.toFloat())
         promise.resolve(success)
     }
 
-    /**
-     * Perform a long press at normalized coordinates.
-     */
     @ReactMethod
     fun performLongPress(x: Double, y: Double, promise: Promise) {
-        if (!RemoteControlAccessibilityService.isServiceEnabled()) {
+        if (checkServiceStatus() == "SERVICE_DISABLED") {
             promise.reject("SERVICE_DISABLED", "Accessibility service is not enabled")
             return
         }
-        
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-            promise.reject("UNSUPPORTED", "Gesture injection requires Android 7.0+")
-            return
-        }
-        
         val success = RemoteControlAccessibilityService.performLongPress(x.toFloat(), y.toFloat())
         promise.resolve(success)
     }
 
-    /**
-     * Perform a swipe gesture.
-     */
     @ReactMethod
-    fun performSwipe(
-        startX: Double, startY: Double,
-        endX: Double, endY: Double,
-        durationMs: Int,
-        promise: Promise
-    ) {
-        if (!RemoteControlAccessibilityService.isServiceEnabled()) {
+    fun performSwipe(startX: Double, startY: Double, endX: Double, endY: Double, durationMs: Int, promise: Promise) {
+        if (checkServiceStatus() == "SERVICE_DISABLED") {
             promise.reject("SERVICE_DISABLED", "Accessibility service is not enabled")
             return
         }
-        
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-            promise.reject("UNSUPPORTED", "Gesture injection requires Android 7.0+")
-            return
-        }
-        
         val success = RemoteControlAccessibilityService.performSwipe(
             startX.toFloat(), startY.toFloat(),
             endX.toFloat(), endY.toFloat(),
@@ -115,21 +90,12 @@ class RemoteControlModule(reactContext: ReactApplicationContext) :
         promise.resolve(success)
     }
 
-    /**
-     * Perform scroll at a position.
-     */
     @ReactMethod
     fun performScroll(x: Double, y: Double, deltaX: Double, deltaY: Double, promise: Promise) {
-        if (!RemoteControlAccessibilityService.isServiceEnabled()) {
+        if (checkServiceStatus() == "SERVICE_DISABLED") {
             promise.reject("SERVICE_DISABLED", "Accessibility service is not enabled")
             return
         }
-        
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-            promise.reject("UNSUPPORTED", "Gesture injection requires Android 7.0+")
-            return
-        }
-        
         val success = RemoteControlAccessibilityService.performScroll(
             x.toFloat(), y.toFloat(),
             deltaX.toFloat(), deltaY.toFloat()
@@ -137,30 +103,22 @@ class RemoteControlModule(reactContext: ReactApplicationContext) :
         promise.resolve(success)
     }
 
-    /**
-     * Perform a global action (back, home, recents, etc.)
-     */
     @ReactMethod
     fun performGlobalAction(action: String, promise: Promise) {
-        if (!RemoteControlAccessibilityService.isServiceEnabled()) {
+        if (checkServiceStatus() == "SERVICE_DISABLED") {
             promise.reject("SERVICE_DISABLED", "Accessibility service is not enabled")
             return
         }
-        
         val success = RemoteControlAccessibilityService.performGlobalAction(action)
         promise.resolve(success)
     }
 
-    /**
-     * Inject text into the focused input field.
-     */
     @ReactMethod
     fun injectText(text: String, promise: Promise) {
-        if (!RemoteControlAccessibilityService.isServiceEnabled()) {
+        if (checkServiceStatus() == "SERVICE_DISABLED") {
             promise.reject("SERVICE_DISABLED", "Accessibility service is not enabled")
             return
         }
-
         val success = RemoteControlAccessibilityService.injectText(text)
         promise.resolve(success)
     }

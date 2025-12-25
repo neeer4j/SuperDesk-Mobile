@@ -96,9 +96,10 @@ class ScreenCaptureService : Service() {
             screenDensity = metrics.densityDpi
         }
         
-        // Scale down for performance
-        screenWidth = screenWidth / 2
-        screenHeight = screenHeight / 2
+        // Use full resolution for maximum clarity
+        // Note: Performance is still good with hardware encoding
+        screenWidth = screenWidth
+        screenHeight = screenHeight
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -217,7 +218,7 @@ class ScreenCaptureService : Service() {
             
             // Convert to base64 JPEG
             val outputStream = ByteArrayOutputStream()
-            croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 50, outputStream)
+            croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, outputStream)
             croppedBitmap.recycle()
             
             val base64Image = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)

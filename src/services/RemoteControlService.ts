@@ -139,10 +139,22 @@ class RemoteControlService {
                 switch (action) {
                     case 'click':
                     case 'tap':
+                        console.log('📱 Tap at:', data.x, data.y);
+                        return await this.performTap(data.x, data.y);
+
+                    case 'down':
+                        // Mouse down - store position for potential drag or click
+                        console.log('📱 Mouse down at:', data.x, data.y);
+                        // For now, just track it - actual tap happens on 'up'
+                        return true;
+
+                    case 'up':
+                        // Mouse up - perform tap at this position
+                        console.log('📱 Mouse up (tap) at:', data.x, data.y);
                         return await this.performTap(data.x, data.y);
 
                     case 'move':
-                        // Mouse move doesn't require action on mobile
+                        // Mouse move doesn't require action on mobile (no cursor)
                         return true;
 
                     case 'doubleClick':
@@ -157,6 +169,7 @@ class RemoteControlService {
 
                     case 'scroll':
                     case 'wheel':
+                        console.log('📱 Scroll at:', data.x, data.y, 'delta:', data.deltaX, data.deltaY);
                         return await this.performScroll(
                             data.x || 0.5,
                             data.y || 0.5,

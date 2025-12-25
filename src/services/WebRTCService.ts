@@ -97,6 +97,10 @@ class WebRTCService {
     private onConnectionStateChangeCallback?: (state: ConnectionState) => void;
     private onDataChannelOpenCallback?: () => void;
 
+    // Audio/Video Chat State (Android = audio only for performance)
+    private audioStream: MediaStream | null = null;
+    private audioEnabled: boolean = true;
+
     async initialize(role: ConnectionRole, sessionId?: string): Promise<void> {
         // Prevent double-initialization for same session
         if (this.peerConnection && this.sessionId === sessionId) {
@@ -232,10 +236,22 @@ class WebRTCService {
 
         this.dataChannel.onopen = () => {
             console.log('📱 Data channel opened - ready for low-latency input');
+            // Send handshake to PC to identify as Android
+            try {
+                this.dataChannel?.send(JSON.stringify({
+                    type: 'system',
+                    action: 'handshake',
+                    data: { platform: 'android' }
+                }));
+                console.log('📱 Sent handshake to PC');
+            } catch (e) {
+                console.warn('📱 Failed to send handshake:', e);
+            }
             this.onDataChannelOpenCallback?.();
         };
 
         this.dataChannel.onmessage = (event: { data: string }) => {
+            console.log('📱 Data channel received:', event.data.substring(0, 100));
             this.onDataChannelMessageCallback?.(event.data);
         };
 
@@ -579,6 +595,92 @@ class WebRTCService {
         // Do NOT close peerConnection or dataChannel - keep them alive for file transfer
     }
 
+    // ==================== AUDIO CHAT (Android audio-only for performance) ====================
+
+    // Get audio-only stream for voice chat (no video on Android to save CPU)
+    async getAudioStream(): Promise<MediaStream | null> {
+        try {
+            console.log('🎙️ Getting audio stream for voice chat...');
+            const stream = await mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                } as any,
+                video: false, // No video on Android for performance
+            });
+
+            if (stream) {
+                const tracks = stream.getTracks();
+                console.log('🎙️ Audio stream obtained:', tracks.length, 'tracks');
+                tracks.forEach(track => {
+                    console.log('🎙️ Audio track:', track.kind, 'enabled:', track.enabled);
+                });
+                this.audioStream = stream;
+            }
+
+            return stream as MediaStream;
+        } catch (error) {
+            console.error('❌ Error getting audio stream:', error);
+            return null;
+        }
+    }
+
+    // Add audio track to peer connection for voice chat
+    async addAudioTrack(): Promise<void> {
+        if (!this.peerConnection) {
+            console.error('❌ Cannot add audio: no peer connection');
+            return;
+        }
+
+        if (!this.audioStream) {
+            const stream = await this.getAudioStream();
+            if (!stream) {
+                console.warn('⚠️ Failed to get audio stream');
+                return;
+            }
+        }
+
+        if (this.audioStream) {
+            const audioTrack = this.audioStream.getAudioTracks()[0];
+            if (audioTrack) {
+                console.log('🎙️ Adding audio track to peer connection');
+                this.peerConnection.addTrack(audioTrack, this.audioStream);
+                this.audioEnabled = true;
+                console.log('✅ Audio track added successfully');
+            }
+        }
+    }
+
+    // Toggle audio mute/unmute
+    toggleAudio(enabled: boolean): void {
+        if (this.audioStream) {
+            const audioTracks = this.audioStream.getAudioTracks();
+            audioTracks.forEach(track => {
+                track.enabled = enabled;
+                console.log('🎙️ Audio track', enabled ? 'ENABLED' : 'DISABLED');
+            });
+        }
+        this.audioEnabled = enabled;
+    }
+
+    // Get audio enabled state
+    isAudioEnabled(): boolean {
+        return this.audioEnabled;
+    }
+
+    // Stop audio stream
+    stopAudioStream(): void {
+        if (this.audioStream) {
+            this.audioStream.getTracks().forEach(track => {
+                track.stop();
+                console.log('🛑 Stopped audio track');
+            });
+            this.audioStream = null;
+        }
+        this.audioEnabled = true;
+    }
+
     // Add new screen track to existing connection and renegotiate
     async addScreenTrack(stream: MediaStream): Promise<void> {
         if (!this.peerConnection) {
@@ -619,11 +721,14 @@ class WebRTCService {
         this.dataChannel?.close();
         this.fileDataChannel?.close();
         this.localStream?.getTracks().forEach((track) => track.stop());
+        this.audioStream?.getTracks().forEach((track) => track.stop());
         this.peerConnection?.close();
 
         this.dataChannel = null;
         this.fileDataChannel = null;
         this.localStream = null;
+        this.audioStream = null;
+        this.audioEnabled = true;
         this.remoteStream = null;
         this.peerConnection = null;
         this.sessionId = null;
