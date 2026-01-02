@@ -25,6 +25,7 @@ import { useTheme } from '../context/ThemeContext';
 
 // Type definitions
 export type RootStackParamList = {
+    Landing: undefined;
     Login: undefined;
     MainTabs: undefined;
     Remote: {
@@ -44,6 +45,8 @@ export type RootStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+import LandingScreen from '../screens/LandingScreen';
 
 // Main Navigation with Auth State
 const Navigation: React.FC = () => {
@@ -83,7 +86,7 @@ const Navigation: React.FC = () => {
         setIsAuthenticated(false);
     };
 
-    // Define navigation themes based on our context
+    // ... theme config ...
     const baseTheme = theme === 'dark' ? DarkTheme : DefaultTheme;
     const navigationTheme = {
         ...baseTheme,
@@ -114,39 +117,36 @@ const Navigation: React.FC = () => {
                     animation: 'slide_from_right',
                     contentStyle: { backgroundColor: colors.background },
                 }}
-                initialRouteName={isAuthenticated ? "MainTabs" : "Login"}
+                initialRouteName="Landing"
             >
-                {/* Login screen - only available when not authenticated */}
-                {!isAuthenticated && (
-                    <Stack.Screen name="Login">
-                        {(props) => <LoginScreen {...props} onLogin={handleLogin} />}
-                    </Stack.Screen>
-                )}
+                {/* Landing screen - acts as entry point */}
+                <Stack.Screen name="Landing" component={LandingScreen} />
 
-                {/* Main app screens - only available when authenticated */}
-                {isAuthenticated && (
-                    <>
-                        <Stack.Screen name="MainTabs" component={TabsWithDrawer} />
-                        <Stack.Screen
-                            name="Remote"
-                            options={{
-                                animation: 'fade',
-                                gestureEnabled: false,
-                            }}
-                        >
-                            {(props: any) => <RemoteScreen {...props} />}
-                        </Stack.Screen>
-                        <Stack.Screen name="Session">
-                            {(props: any) => <SessionScreen {...props} />}
-                        </Stack.Screen>
-                        <Stack.Screen name="Settings">
-                            {(props) => <SettingsScreen {...props} onLogout={handleLogout} />}
-                        </Stack.Screen>
-                        <Stack.Screen name="Chat">
-                            {(props: any) => <ChatScreen {...props} />}
-                        </Stack.Screen>
-                    </>
-                )}
+                {/* Login screen */}
+                <Stack.Screen name="Login">
+                    {(props) => <LoginScreen {...props} onLogin={handleLogin} />}
+                </Stack.Screen>
+
+                {/* Main app screens */}
+                <Stack.Screen name="MainTabs" component={TabsWithDrawer} />
+                <Stack.Screen
+                    name="Remote"
+                    options={{
+                        animation: 'fade',
+                        gestureEnabled: false,
+                    }}
+                >
+                    {(props: any) => <RemoteScreen {...props} />}
+                </Stack.Screen>
+                <Stack.Screen name="Session">
+                    {(props: any) => <SessionScreen {...props} />}
+                </Stack.Screen>
+                <Stack.Screen name="Settings">
+                    {(props) => <SettingsScreen {...props} onLogout={handleLogout} />}
+                </Stack.Screen>
+                <Stack.Screen name="Chat">
+                    {(props: any) => <ChatScreen {...props} />}
+                </Stack.Screen>
             </Stack.Navigator>
         </NavigationContainer>
     );
