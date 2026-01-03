@@ -153,29 +153,36 @@ export const friendsService = {
         const user = await authService.getUser();
         if (!user) throw new Error('Not authenticated');
 
-        // Get friends records
+        // Get friends records where user is either sender or receiver and status is accepted
         const { data: friendsData, error } = await supabase
             .from('friends')
             .select('*')
-            .eq('user_id', user.id)
+            .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
             .eq('status', 'accepted')
             .order('created_at', { ascending: false });
 
         if (error) throw error;
         if (!friendsData || friendsData.length === 0) return [];
 
-        // Get friend profiles separately
-        const friendIds = friendsData.map((f: any) => f.friend_id);
+        // Collect all other user IDs
+        const otherUserIds = friendsData.map((f: any) =>
+            f.user_id === user.id ? f.friend_id : f.user_id
+        );
+
+        // Get profiles for all these users
         const { data: profiles } = await supabase
             .from('profiles')
             .select('*')
-            .in('id', friendIds);
+            .in('id', otherUserIds);
 
-        // Manually join the data
-        const friends = friendsData.map((friend: any) => ({
-            ...friend,
-            friend_profile: profiles?.find(p => p.id === friend.friend_id),
-        }));
+        // Map profiles to the friends list
+        const friends = friendsData.map((friend: any) => {
+            const otherUserId = friend.user_id === user.id ? friend.friend_id : friend.user_id;
+            return {
+                ...friend,
+                friend_profile: profiles?.find(p => p.id === otherUserId),
+            };
+        });
 
         return friends as Friend[];
     },

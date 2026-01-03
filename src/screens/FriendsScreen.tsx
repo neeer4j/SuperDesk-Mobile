@@ -19,6 +19,8 @@ import { useTheme } from '../context/ThemeContext';
 import { ScreenContainer, Card, Button } from '../components/ui';
 import { typography, layout } from '../theme/designSystem';
 
+import { Mail } from 'lucide-react-native';
+
 interface FriendsScreenProps {
     navigation: any;
 }
@@ -30,7 +32,9 @@ const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+
     const [isAddingFriend, setIsAddingFriend] = useState(false);
+    const [showPending, setShowPending] = useState(false);
 
     useEffect(() => {
         loadFriends();
@@ -195,6 +199,41 @@ const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
         <ScreenContainer>
 
 
+            {/* Header with Mail Button */}
+            <View style={styles.header}>
+                <Text style={[styles.sectionTitle, { fontSize: typography.size.lg, marginBottom: 0 }]}>Friends</Text>
+                <TouchableOpacity
+                    onPress={() => setShowPending(!showPending)}
+                    style={styles.mailButton}
+                >
+                    <Mail color={colors.text} size={24} />
+                    {pendingRequests.length > 0 && (
+                        <View style={styles.badge}>
+                            <Text style={styles.badgeText}>{pendingRequests.length}</Text>
+                        </View>
+                    )}
+                </TouchableOpacity>
+            </View>
+
+            {/* Pending Requests Section (Togglable) */}
+            {showPending && (
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>
+                        Pending Requests ({pendingRequests.length})
+                    </Text>
+                    {pendingRequests.length === 0 ? (
+                        <Text style={{ color: colors.subText, fontStyle: 'italic', marginBottom: 10 }}>No pending requests</Text>
+                    ) : (
+                        <FlatList
+                            data={pendingRequests}
+                            renderItem={renderPendingRequest}
+                            keyExtractor={(item) => item.id}
+                            scrollEnabled={false}
+                        />
+                    )}
+                </View>
+            )}
+
             {/* Add Friend Input */}
             <View style={styles.addFriendContainer}>
                 <TextInput
@@ -216,19 +255,7 @@ const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
 
             {/* Lists */}
             <View style={styles.listContainer}>
-                {pendingRequests.length > 0 && (
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>
-                            Pending Requests ({pendingRequests.length})
-                        </Text>
-                        <FlatList
-                            data={pendingRequests}
-                            renderItem={renderPendingRequest}
-                            keyExtractor={(item) => item.id}
-                            scrollEnabled={false}
-                        />
-                    </View>
-                )}
+                {/* Pending requests moved to toggle section above */}
 
                 <Text style={styles.sectionTitle}>
                     {friends.length > 0 ? `Friends (${friends.length})` : 'No Friends Yet'}
@@ -265,8 +292,28 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: layout.spacing.md,
-        marginBottom: layout.spacing.md,
+    },
+    mailButton: {
+        position: 'relative',
+        padding: 8,
+    },
+    badge: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        backgroundColor: '#FF3B30', // Ribbon/Alert color
+        borderRadius: 10,
+        width: 18,
+        height: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'white',
+    },
+    badgeText: {
+        color: 'white',
+        fontSize: 10,
+        fontWeight: 'bold',
     },
     logoImage: {
         width: 200,
