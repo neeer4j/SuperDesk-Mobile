@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { BackIcon } from '../components/Icons';
 import { authService } from '../services/supabaseClient';
+import { biometricService, BiometryType } from '../services/BiometricService';
 import { useTheme } from '../context/ThemeContext';
 
 interface SettingsScreenProps {
@@ -40,10 +41,38 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [showEditProfile, setShowEditProfile] = useState(false);
     const [editUsername, setEditUsername] = useState('');
+    const [biometryType, setBiometryType] = useState<BiometryType | null>(null);
+    const [biometricsEnabled, setBiometricsEnabled] = useState(false);
 
     useEffect(() => {
         loadUserProfile();
+        loadBiometricSettings();
     }, []);
+
+    const loadBiometricSettings = async () => {
+        try {
+            console.log('📱 SettingsScreen: Checking biometric availability...');
+            const type = await biometricService.checkAvailability();
+            console.log('📱 SettingsScreen: Biometry type:', type);
+            setBiometryType(type);
+            if (type) {
+                const enabled = await biometricService.isEnabled();
+                console.log('📱 SettingsScreen: Biometrics enabled:', enabled);
+                setBiometricsEnabled(enabled);
+            }
+        } catch (error) {
+            console.log('📱 SettingsScreen: Biometric check error:', error);
+        }
+    };
+
+    const handleBiometricToggle = async () => {
+        const newValue = !biometricsEnabled;
+        setBiometricsEnabled(newValue);
+        await biometricService.setEnabled(newValue);
+        if (newValue) {
+            Alert.alert('Biometrics Enabled', 'You can now use your fingerprint or face to log in.');
+        }
+    };
 
     const loadUserProfile = async () => {
         try {
@@ -211,6 +240,30 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
                         value={theme === 'dark'}
                         onToggle={toggleTheme}
                     />
+                </View>
+
+                {/* Security Section - Always visible */}
+                <Text style={[styles.sectionTitle, { color: colors.primary }]}>SECURITY</Text>
+                <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+                    {biometryType ? (
+                        <SettingToggle
+                            icon="🔐"
+                            title={`${biometricService.getBiometryName(biometryType)} Login`}
+                            subtitle="Use biometrics for faster login"
+                            value={biometricsEnabled}
+                            onToggle={handleBiometricToggle}
+                        />
+                    ) : (
+                        <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
+                            <View style={[styles.settingIcon, { backgroundColor: colors.iconBackground }]}>
+                                <Text style={styles.iconText}>🔐</Text>
+                            </View>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingTitle, { color: colors.subText }]}>Biometric Login</Text>
+                                <Text style={[styles.settingSubtitle, { color: colors.subText }]}>Not available on this device</Text>
+                            </View>
+                        </View>
+                    )}
                 </View>
 
                 <Text style={[styles.sectionTitle, { color: colors.primary }]}>PREFERENCES</Text>

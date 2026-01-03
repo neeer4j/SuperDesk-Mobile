@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { authService } from '../services/supabaseClient';
+import { biometricService, BiometryType } from '../services/BiometricService';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.85;
 const SWIPE_THRESHOLD = 50;
@@ -48,6 +49,9 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
     const [videoQuality, setVideoQuality] = useState('Auto');
     const [showEditProfile, setShowEditProfile] = useState(false);
     const [editUsername, setEditUsername] = useState('');
+    const [biometryType, setBiometryType] = useState<BiometryType | null>(null);
+    const [biometricsEnabled, setBiometricsEnabled] = useState(false);
+    const [biometricTimeout, setBiometricTimeout] = useState(0);
 
     useEffect(() => {
         setUserProfile(initialProfile);
@@ -55,6 +59,37 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
             setEditUsername(initialProfile.username);
         }
     }, [initialProfile]);
+
+    // Load biometric settings
+    useEffect(() => {
+        const loadBiometrics = async () => {
+            try {
+                const type = await biometricService.checkAvailability();
+                console.log('📱 SideDrawer: Biometry type:', type);
+                setBiometryType(type);
+                if (type) {
+                    const enabled = await biometricService.isEnabled();
+                    const timeout = await biometricService.getTimeout();
+                    setBiometricsEnabled(enabled);
+                    setBiometricTimeout(timeout);
+                }
+            } catch (error) {
+                console.log('📱 SideDrawer: Biometric error:', error);
+            }
+        };
+        loadBiometrics();
+    }, []);
+
+    const handleBiometricToggle = async () => {
+        const newValue = !biometricsEnabled;
+        setBiometricsEnabled(newValue);
+        await biometricService.setEnabled(newValue);
+    };
+
+    const handleTimeoutChange = async (minutes: number) => {
+        setBiometricTimeout(minutes);
+        await biometricService.setTimeout(minutes);
+    };
 
     useEffect(() => {
         Animated.parallel([
@@ -274,6 +309,30 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
                             value={theme === 'dark'}
                             onToggle={toggleTheme}
                         />
+                    </View>
+
+                    {/* Security Section */}
+                    <Text style={[styles.sectionTitle, { color: colors.primary }]}>SECURITY</Text>
+                    <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+                        {biometryType ? (
+                            <SettingToggle
+                                icon="🔐"
+                                title={`${biometricService.getBiometryName(biometryType)} Login`}
+                                subtitle="Use biometrics for secure login"
+                                value={biometricsEnabled}
+                                onToggle={handleBiometricToggle}
+                            />
+                        ) : (
+                            <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
+                                <View style={[styles.settingIcon, { backgroundColor: colors.iconBackground }]}>
+                                    <Text style={styles.iconText}>🔐</Text>
+                                </View>
+                                <View style={styles.settingInfo}>
+                                    <Text style={[styles.settingTitle, { color: colors.subText }]}>Biometric Login</Text>
+                                    <Text style={[styles.settingSubtitle, { color: colors.subText }]}>Not available on this device</Text>
+                                </View>
+                            </View>
+                        )}
                     </View>
 
                     {/* Preferences Section */}

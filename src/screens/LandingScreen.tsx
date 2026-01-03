@@ -16,6 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/Navigation';
 import { typography, layout } from '../theme/designSystem';
 import { authService, UserProfile } from '../services/supabaseClient';
+import { biometricService, BiometryType } from '../services/BiometricService';
 import { useTheme } from '../context/ThemeContext';
 
 interface UserState {
@@ -33,6 +34,9 @@ const LandingScreen = () => {
         profile: null,
         isLoading: true,
     });
+    const [biometryType, setBiometryType] = useState<BiometryType | null>(null);
+    const [biometricsRequired, setBiometricsRequired] = useState(false);
+    const [isAuthenticating, setIsAuthenticating] = useState(false);
 
     // Enhanced animations
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -109,6 +113,14 @@ const LandingScreen = () => {
                     profile,
                     isLoading: false,
                 });
+
+                // Check biometrics availability and requirement
+                const type = await biometricService.checkAvailability();
+                setBiometryType(type);
+                if (type) {
+                    const isRequired = await biometricService.isAuthRequired();
+                    setBiometricsRequired(isRequired);
+                }
             } else {
                 setUserState({
                     isLoggedIn: false,
@@ -130,8 +142,26 @@ const LandingScreen = () => {
         navigation.navigate('Login');
     };
 
-    const handleContinue = () => {
-        navigation.navigate('MainTabs');
+    const handleContinue = async () => {
+        if (biometricsRequired) {
+            setIsAuthenticating(true);
+            const success = await biometricService.authenticate('Authenticate to continue');
+            setIsAuthenticating(false);
+            if (success) {
+                navigation.navigate('MainTabs');
+            }
+        } else {
+            navigation.navigate('MainTabs');
+        }
+    };
+
+    const handleBiometricAuth = async () => {
+        setIsAuthenticating(true);
+        const success = await biometricService.authenticate('Authenticate to continue');
+        setIsAuthenticating(false);
+        if (success) {
+            navigation.navigate('MainTabs');
+        }
     };
 
     const getAvatarLetter = () => {
@@ -243,6 +273,7 @@ const LandingScreen = () => {
                                 style={styles.buttonContainer}
                                 onPress={handleContinue}
                                 activeOpacity={0.9}
+                                disabled={isAuthenticating}
                             >
                                 <LinearGradient
                                     colors={[colors.primary, colors.primary + 'DD']}
@@ -250,10 +281,32 @@ const LandingScreen = () => {
                                     start={{ x: 0, y: 0 }}
                                     end={{ x: 1, y: 1 }}
                                 >
-                                    <Text style={styles.buttonText}>Continue</Text>
+                                    {isAuthenticating ? (
+                                        <ActivityIndicator color="#FFFFFF" />
+                                    ) : (
+                                        <Text style={styles.buttonText}>Continue</Text>
+                                    )}
                                 </LinearGradient>
                             </TouchableOpacity>
                         </Animated.View>
+
+                        {/* Fingerprint Button - for in-screen fingerprint devices */}
+                        {biometricsRequired && biometryType && (
+                            <TouchableOpacity
+                                style={styles.fingerprintTouchArea}
+                                onPress={handleBiometricAuth}
+                                activeOpacity={0.7}
+                            >
+                                <Image
+                                    source={require('../assets/fingerprint.png')}
+                                    style={[styles.fingerprintIcon, { tintColor: colors.primary }]}
+                                    resizeMode="contain"
+                                />
+                                <Text style={[styles.fingerprintHint, { color: colors.subText }]}>
+                                    Tap to authenticate
+                                </Text>
+                            </TouchableOpacity>
+                        )}
 
                         {/* Switch Account Option */}
                         <TouchableOpacity
@@ -515,6 +568,19 @@ const styles = StyleSheet.create({
         fontSize: typography.size.xs,
         fontFamily: typography.fontFamily.regular,
         opacity: 0.5,
+    },
+    fingerprintTouchArea: {
+        alignItems: 'center',
+        marginTop: layout.spacing.lg,
+        paddingVertical: layout.spacing.md,
+    },
+    fingerprintIcon: {
+        width: 60,
+        height: 60,
+    },
+    fingerprintHint: {
+        fontSize: typography.size.sm,
+        marginTop: layout.spacing.sm,
     },
 });
 
