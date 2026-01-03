@@ -9,17 +9,20 @@ import {
     Dimensions,
     ActivityIndicator,
     Alert,
+    useWindowDimensions,
 } from 'react-native';
 import {
     GestureHandlerRootView,
     GestureDetector,
     Gesture,
 } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { RTCView, MediaStream } from 'react-native-webrtc';
 import { socketService } from '../services/SocketService';
 import { webRTCService } from '../services/WebRTCService';
 import { inputService } from '../services/InputService';
 import { sessionManager } from '../services/SessionManager';
+import Joystick from '../components/Joystick';
 
 interface RemoteScreenProps {
     route: {
@@ -33,14 +36,35 @@ interface RemoteScreenProps {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+// Wrapper functions for input service to avoid Reanimated access errors
+const handleTap = (x: number, y: number) => inputService.onTap(x, y);
+const handleDoubleTap = (x: number, y: number) => inputService.onDoubleTap(x, y);
+const handleLongPress = (x: number, y: number) => inputService.onLongPress(x, y);
+const handleTouchStart = (x: number, y: number) => inputService.onTouchStart(x, y);
+const handleTouchMove = (x: number, y: number) => inputService.onTouchMove(x, y);
+const handleTouchEnd = () => inputService.onTouchEnd();
+const handlePinch = (scale: number, cx: number, cy: number) => inputService.onPinch(scale, cx, cy);
+const handleJoystickMove = (dx: number, dy: number) => inputService.moveCursorRelative(dx, dy);
+const handleJoystickPress = () => inputService.clickAtLastPosition();
+const handleTwoFingerScroll = (dx: number, dy: number) => inputService.onTwoFingerPan(dx, dy);
+
 const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    const isLandscape = windowWidth > windowHeight;
+
     const { sessionId } = route.params;
 
+    const [showJoystick, setShowJoystick] = useState(true);
     const [connectionState, setConnectionState] = useState<string>('connecting');
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
     const [showControls, setShowControls] = useState(true);
     const [isRemoteControlEnabled, setIsRemoteControlEnabled] = useState(false);
+    const [isMicOn, setIsMicOn] = useState(false);
     const [streamDimensions, setStreamDimensions] = useState({ width: 1920, height: 1080 });
+    const [networkStats, setNetworkStats] = useState<{
+        rtt: number | null;
+        signalLevel: number; // 0-4 bars
+    }>({ rtt: null, signalLevel: 4 });
 
     // Video display area tracking for accurate coordinate mapping
     const [containerDimensions, setContainerDimensions] = useState({ width: SCREEN_WIDTH, height: SCREEN_HEIGHT });
@@ -191,6 +215,32 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
         };
     }, [remoteStream]);
 
+    // Poll for network quality stats
+    useEffect(() => {
+        if (!remoteStream) return;
+
+        const pollStats = async () => {
+            const stats = await webRTCService.getConnectionStats();
+
+            // Calculate signal level from RTT (0-4 bars)
+            let signalLevel = 4; // Excellent by default
+            if (stats.rtt !== null) {
+                if (stats.rtt > 300) signalLevel = 1;      // Poor: >300ms
+                else if (stats.rtt > 150) signalLevel = 2; // Fair: 150-300ms
+                else if (stats.rtt > 80) signalLevel = 3;  // Good: 80-150ms
+                else signalLevel = 4;                       // Excellent: <80ms
+            }
+
+            setNetworkStats({ rtt: stats.rtt, signalLevel });
+        };
+
+        // Poll every 2 seconds
+        pollStats();
+        const intervalId = setInterval(pollStats, 2000);
+
+        return () => clearInterval(intervalId);
+    }, [remoteStream]);
+
     const setupRemoteStreamListener = () => {
         webRTCService.onRemoteStream((stream) => {
             console.log('📱 Got remote stream!');
@@ -279,6 +329,7 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
 
     // Helper to convert screen coordinates to video-relative coordinates
     const getVideoRelativeCoords = (x: number, y: number) => {
+        'worklet';
         const videoRelativeX = x - videoDisplayArea.offsetX;
         const videoRelativeY = y - videoDisplayArea.offsetY;
 
@@ -298,66 +349,84 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
     // Gesture handlers for remote control - ALWAYS send input when we have a stream
     const tapGesture = Gesture.Tap()
         .onEnd((event) => {
+            'worklet';
             if (!remoteStream) return;
 
             const coords = getVideoRelativeCoords(event.x, event.y);
             if (coords.isValid) {
-                inputService.onTap(coords.x, coords.y);
+                runOnJS(handleTap)(coords.x, coords.y);
             }
         });
 
     const doubleTapGesture = Gesture.Tap()
         .numberOfTaps(2)
         .onEnd((event) => {
+            'worklet';
             if (!remoteStream) return;
 
             const coords = getVideoRelativeCoords(event.x, event.y);
             if (coords.isValid) {
-                inputService.onDoubleTap(coords.x, coords.y);
+                runOnJS(handleDoubleTap)(coords.x, coords.y);
             }
         });
 
     const longPressGesture = Gesture.LongPress()
         .minDuration(500)
         .onEnd((event) => {
+            'worklet';
             if (!remoteStream) return;
 
             const coords = getVideoRelativeCoords(event.x, event.y);
             if (coords.isValid) {
-                inputService.onLongPress(coords.x, coords.y);
+                runOnJS(handleLongPress)(coords.x, coords.y);
             }
         });
 
     const panGesture = Gesture.Pan()
+        .maxPointers(1)
         .onStart((event) => {
+            'worklet';
             if (!remoteStream) return;
 
             const coords = getVideoRelativeCoords(event.x, event.y);
             if (coords.isValid) {
-                inputService.onTouchStart(coords.x, coords.y);
+                runOnJS(handleTouchStart)(coords.x, coords.y);
             }
         })
         .onUpdate((event) => {
+            'worklet';
             if (!remoteStream) return;
 
             const coords = getVideoRelativeCoords(event.x, event.y);
             if (coords.isValid) {
-                inputService.onTouchMove(coords.x, coords.y);
+                runOnJS(handleTouchMove)(coords.x, coords.y);
             }
         })
         .onEnd(() => {
+            'worklet';
             if (remoteStream) {
-                inputService.onTouchEnd();
+                runOnJS(handleTouchEnd)();
             }
+        });
+
+    const scrollGesture = Gesture.Pan()
+        .minPointers(2)
+        .onUpdate((event) => {
+            'worklet';
+            if (!remoteStream) return;
+            // Use translationX/Y deltas if changeX/Y unavailable, but Reanimated worklets usually see all event props.
+            // RNGH v2: event.changeX, event.changeY
+            runOnJS(handleTwoFingerScroll)((event as any).changeX, (event as any).changeY);
         });
 
     const pinchGesture = Gesture.Pinch()
         .onUpdate((event) => {
+            'worklet';
             if (!remoteStream) return;
 
             const coords = getVideoRelativeCoords(event.focalX, event.focalY);
             if (coords.isValid) {
-                inputService.onPinch(event.scale, coords.x, coords.y);
+                runOnJS(handlePinch)(event.scale, coords.x, coords.y);
             }
         });
 
@@ -368,6 +437,7 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
             tapGesture,
             longPressGesture,
             panGesture,
+            scrollGesture,
             pinchGesture
         )
     );
@@ -376,6 +446,18 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
         setShowControls(!showControls);
         if (!showControls) {
             startControlsTimeout();
+        }
+    };
+
+    const handleMicToggle = async () => {
+        if (!isMicOn) {
+            await webRTCService.addAudioTrack();
+            setIsMicOn(true);
+            hapticService.selection();
+        } else {
+            webRTCService.toggleAudio(false);
+            setIsMicOn(false);
+            hapticService.selection();
         }
     };
 
@@ -489,6 +571,34 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
                             <Text style={styles.sessionText}>{getStatusText()}</Text>
                         </View>
 
+                        {/* Network Quality Indicator */}
+                        <View style={styles.signalContainer}>
+                            <TouchableOpacity
+                                style={[styles.controlButton, { backgroundColor: showJoystick ? '#8b5cf6' : 'rgba(255,255,255,0.1)', width: 36, height: 36, padding: 0, marginRight: 8 }]}
+                                onPress={() => setShowJoystick(!showJoystick)}
+                            >
+                                <Text style={{ fontSize: 20 }}>🕹️</Text>
+                            </TouchableOpacity>
+
+                            <View style={styles.signalBars}>
+                                {[1, 2, 3, 4].map((level) => (
+                                    <View
+                                        key={level}
+                                        style={[
+                                            styles.signalBar,
+                                            { height: 4 + level * 3 },
+                                            networkStats.signalLevel >= level
+                                                ? { backgroundColor: networkStats.signalLevel <= 2 ? '#f59e0b' : '#22c55e' }
+                                                : { backgroundColor: 'rgba(255,255,255,0.3)' }
+                                        ]}
+                                    />
+                                ))}
+                            </View>
+                            {networkStats.rtt !== null && (
+                                <Text style={styles.rttText}>{networkStats.rtt}ms</Text>
+                            )}
+                        </View>
+
                         <TouchableOpacity style={styles.closeButton} onPress={handleDisconnect}>
                             <Text style={styles.closeButtonText}>✕</Text>
                         </TouchableOpacity>
@@ -518,12 +628,40 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
                         </TouchableOpacity>
 
                         <TouchableOpacity
+                            style={[styles.controlButton, isMicOn && { backgroundColor: 'rgba(239, 68, 68, 0.3)', borderColor: '#ef4444' }]}
+                            onPress={handleMicToggle}
+                        >
+                            <Text style={styles.controlButtonText}>{isMicOn ? '🎤 On' : '🎤 Mic'}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
                             style={styles.controlButton}
                             onPress={() => setIsRemoteControlEnabled(true)}
                         >
                             <Text style={styles.controlButtonText}>🖱️ Control</Text>
                         </TouchableOpacity>
                     </View>
+                </View>
+            )}
+
+
+
+            {/* Joystick Overlay */}
+            {remoteStream && showJoystick && (
+                <View
+                    style={[
+                        styles.joystickContainer,
+                        isLandscape
+                            ? { left: 60, bottom: 60, right: undefined }
+                            : { left: '50%', bottom: 120, right: undefined, marginLeft: -75 }
+                    ]}
+                    pointerEvents="box-none"
+                >
+                    <Joystick
+                        onMove={(dx, dy) => handleJoystickMove(dx, dy)}
+                        onPress={() => handleJoystickPress()}
+                        color="#8b5cf6"
+                    />
                 </View>
             )}
 
@@ -584,8 +722,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 16,
-        paddingTop: 50,
+        padding: 10,
+        paddingTop: 10,
         backgroundColor: 'rgba(0, 0, 0, 0.7)',
     },
     sessionInfo: {
@@ -620,8 +758,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 16,
-        paddingBottom: 40,
+        padding: 10,
+        paddingBottom: 10,
         backgroundColor: 'rgba(0, 0, 0, 0.7)',
         gap: 12,
     },
@@ -662,6 +800,36 @@ const styles = StyleSheet.create({
     floatingControlText: {
         fontSize: 20,
     },
+    joystickContainer: {
+        position: 'absolute',
+        bottom: 80,
+        right: 80,
+        zIndex: 50,
+        elevation: 10,
+    },
+    signalContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    signalBars: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        height: 16,
+        gap: 2,
+        marginRight: 6,
+    },
+    signalBar: {
+        width: 3,
+        borderRadius: 1,
+    },
+    rttText: {
+        color: 'rgba(255,255,255,0.7)',
+        fontSize: 10,
+        minWidth: 40,
+        textAlign: 'right',
+    },
+
     floatingControlLabel: {
         color: '#fff',
         fontSize: 10,

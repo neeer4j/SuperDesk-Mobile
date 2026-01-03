@@ -17,6 +17,7 @@ import { RootStackParamList } from '../navigation/Navigation';
 import { typography, layout } from '../theme/designSystem';
 import { authService, UserProfile } from '../services/supabaseClient';
 import { biometricService, BiometryType } from '../services/BiometricService';
+import { hapticService } from '../services/HapticService';
 import { useTheme } from '../context/ThemeContext';
 
 interface UserState {
@@ -143,12 +144,16 @@ const LandingScreen = () => {
     };
 
     const handleContinue = async () => {
+        hapticService.medium();
         if (biometricsRequired) {
             setIsAuthenticating(true);
             const success = await biometricService.authenticate('Authenticate to continue');
             setIsAuthenticating(false);
             if (success) {
+                hapticService.success();
                 navigation.navigate('MainTabs');
+            } else {
+                hapticService.error();
             }
         } else {
             navigation.navigate('MainTabs');
@@ -156,11 +161,15 @@ const LandingScreen = () => {
     };
 
     const handleBiometricAuth = async () => {
+        hapticService.medium();
         setIsAuthenticating(true);
         const success = await biometricService.authenticate('Authenticate to continue');
         setIsAuthenticating(false);
         if (success) {
+            hapticService.success();
             navigation.navigate('MainTabs');
+        } else {
+            hapticService.error();
         }
     };
 

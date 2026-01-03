@@ -2,6 +2,7 @@
 // Uses WebRTC data channel for lowest latency (P2P) with Socket.IO fallback
 import { webRTCService } from './WebRTCService';
 import { socketService } from './SocketService';
+import { hapticService } from './HapticService';
 
 export interface TouchPosition {
     x: number;
@@ -27,18 +28,18 @@ class InputService {
     private preferDataChannel: boolean = true; // Use P2P for lowest latency
 
     // Set the local view dimensions for coordinate normalization
-    setViewSize(width: number, height: number) {
+    setViewSize = (width: number, height: number) => {
         this.viewWidth = width;
         this.viewHeight = height;
     }
 
     // Set the session ID for Socket.IO fallback
-    setSessionId(sessionId: string) {
+    setSessionId = (sessionId: string) => {
         this.sessionId = sessionId;
     }
 
     // Convert touch coordinates to normalized (0.0-1.0) coordinates
-    private normalizeCoordinates(x: number, y: number): NormalizedPosition {
+    normalizeCoordinates = (x: number, y: number): NormalizedPosition => {
         return {
             x: Math.min(1, Math.max(0, x / this.viewWidth)),
             y: Math.min(1, Math.max(0, y / this.viewHeight)),
@@ -46,7 +47,7 @@ class InputService {
     }
 
     // Send input event - uses data channel if available, Socket.IO as fallback
-    private sendInput(event: InputEvent) {
+    private sendInput = (event: InputEvent) => {
         const dataChannelOpen = webRTCService.isDataChannelOpen();
         console.log(`📱 Sending input: ${event.type}:${event.action}, dataChannel=${dataChannelOpen}, sessionId=${this.sessionId}`);
 
@@ -83,7 +84,7 @@ class InputService {
     }
 
     // Handle touch start (mouse down at position)
-    onTouchStart(x: number, y: number) {
+    onTouchStart = (x: number, y: number) => {
         const pos = this.normalizeCoordinates(x, y);
         this.lastPosition = pos;
 
@@ -95,7 +96,7 @@ class InputService {
     }
 
     // Handle touch move (mouse move)
-    onTouchMove(x: number, y: number) {
+    onTouchMove = (x: number, y: number) => {
         const pos = this.normalizeCoordinates(x, y);
         this.lastPosition = pos;
 
@@ -107,7 +108,7 @@ class InputService {
     }
 
     // Handle touch end (mouse up at last position)
-    onTouchEnd() {
+    onTouchEnd = () => {
         const pos = this.lastPosition || { x: 0.5, y: 0.5 };
 
         this.sendInput({
@@ -117,8 +118,37 @@ class InputService {
         });
     }
 
+    // Move cursor relative to current position (for joystick)
+    moveCursorRelative = (dx: number, dy: number) => {
+        const currentPos = this.lastPosition || { x: 0.5, y: 0.5 };
+
+        let newX = Math.max(0, Math.min(1, currentPos.x + dx));
+        let newY = Math.max(0, Math.min(1, currentPos.y + dy));
+
+        this.lastPosition = { x: newX, y: newY };
+
+        this.sendInput({
+            type: 'mouse',
+            action: 'move',
+            data: { x: newX, y: newY },
+        });
+    }
+
+    // Click at current last known position (for joystick)
+    clickAtLastPosition = () => {
+        hapticService.light();
+        const pos = this.lastPosition || { x: 0.5, y: 0.5 };
+
+        this.sendInput({
+            type: 'mouse',
+            action: 'click',
+            data: { x: pos.x, y: pos.y, button: 0 },
+        });
+    }
+
     // Handle single tap (left click)
-    onTap(x: number, y: number) {
+    onTap = (x: number, y: number) => {
+        hapticService.light();
         const pos = this.normalizeCoordinates(x, y);
 
         this.sendInput({
@@ -129,7 +159,8 @@ class InputService {
     }
 
     // Handle double tap (double click)
-    onDoubleTap(x: number, y: number) {
+    onDoubleTap = (x: number, y: number) => {
+        hapticService.medium();
         const pos = this.normalizeCoordinates(x, y);
 
         // Send two clicks quickly
@@ -149,7 +180,8 @@ class InputService {
     }
 
     // Handle long press (right click)
-    onLongPress(x: number, y: number) {
+    onLongPress = (x: number, y: number) => {
+        hapticService.heavy();
         const pos = this.normalizeCoordinates(x, y);
 
         this.sendInput({
@@ -159,8 +191,12 @@ class InputService {
         });
     }
 
+    // ...
+
+
+
     // Handle pinch zoom (scroll)
-    onPinch(scale: number, centerX: number, centerY: number) {
+    onPinch = (scale: number, centerX: number, centerY: number) => {
         const pos = this.normalizeCoordinates(centerX, centerY);
         const deltaY = scale > 1 ? -100 : 100; // Pinch out = scroll up
 
@@ -172,7 +208,7 @@ class InputService {
     }
 
     // Handle two-finger pan (scroll)
-    onTwoFingerPan(deltaX: number, deltaY: number) {
+    onTwoFingerPan = (deltaX: number, deltaY: number) => {
         const pos = this.lastPosition || { x: 0.5, y: 0.5 };
 
         this.sendInput({
@@ -188,10 +224,10 @@ class InputService {
     }
 
     // Send keyboard key press
-    sendKeyPress(
+    sendKeyPress = (
         key: string,
         modifiers?: { ctrl?: boolean; alt?: boolean; shift?: boolean; meta?: boolean }
-    ) {
+    ) => {
         this.sendInput({
             type: 'keyboard',
             action: 'press',
@@ -200,7 +236,7 @@ class InputService {
     }
 
     // Send keyboard key down
-    sendKeyDown(key: string, code?: string) {
+    sendKeyDown = (key: string, code?: string) => {
         this.sendInput({
             type: 'keyboard',
             action: 'down',
@@ -209,7 +245,7 @@ class InputService {
     }
 
     // Send keyboard key up
-    sendKeyUp(key: string, code?: string) {
+    sendKeyUp = (key: string, code?: string) => {
         this.sendInput({
             type: 'keyboard',
             action: 'up',
@@ -218,7 +254,7 @@ class InputService {
     }
 
     // Send text input (types each character)
-    sendText(text: string) {
+    sendText = (text: string) => {
         for (const char of text) {
             this.sendInput({
                 type: 'keyboard',
@@ -229,7 +265,7 @@ class InputService {
     }
 
     // Send special keys
-    sendSpecialKey(
+    sendSpecialKey = (
         key:
             | 'escape'
             | 'enter'
@@ -244,7 +280,8 @@ class InputService {
             | 'down'
             | 'left'
             | 'right'
-    ) {
+    ) => {
+        hapticService.medium();
         const keyCodeMap: Record<string, string> = {
             escape: 'Escape',
             enter: 'Enter',
@@ -269,12 +306,12 @@ class InputService {
     }
 
     // Set preference for data channel vs Socket.IO
-    setPreferDataChannel(prefer: boolean) {
+    setPreferDataChannel = (prefer: boolean) => {
         this.preferDataChannel = prefer;
     }
 
     // Check if input is ready
-    isReady(): boolean {
+    isReady = (): boolean => {
         return webRTCService.isDataChannelOpen() || !!this.sessionId;
     }
 }

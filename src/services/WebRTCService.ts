@@ -97,9 +97,9 @@ class WebRTCService {
     private onConnectionStateChangeCallback?: (state: ConnectionState) => void;
     private onDataChannelOpenCallback?: () => void;
 
-    // Audio/Video Chat State (Android = audio only for performance)
     private audioStream: MediaStream | null = null;
     private audioEnabled: boolean = true;
+    private isAudioShared: boolean = false;
 
     async initialize(role: ConnectionRole, sessionId?: string): Promise<void> {
         // Prevent double-initialization for same session
@@ -598,6 +598,61 @@ class WebRTCService {
         return ((this.peerConnection as any)?.connectionState || 'disconnected') as ConnectionState;
     }
 
+    // Get connection stats (RTT, bitrate, packet loss)
+    async getConnectionStats(): Promise<{
+        rtt: number | null;       // Round-trip time in ms
+        bitrate: number | null;   // Current video bitrate in kbps
+        packetLoss: number | null; // Packet loss percentage
+        jitter: number | null;    // Jitter in ms
+    }> {
+        const stats = {
+            rtt: null as number | null,
+            bitrate: null as number | null,
+            packetLoss: null as number | null,
+            jitter: null as number | null,
+        };
+
+        if (!this.peerConnection) return stats;
+
+        try {
+            const rtcStats = await (this.peerConnection as any).getStats();
+
+            rtcStats.forEach((report: any) => {
+                // Get RTT from candidate-pair or remote-inbound-rtp
+                if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                    if (report.currentRoundTripTime !== undefined) {
+                        stats.rtt = Math.round(report.currentRoundTripTime * 1000); // Convert to ms
+                    }
+                }
+
+                // Get inbound video stats (as viewer receiving video)
+                if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                    // Calculate bitrate
+                    if (report.bytesReceived !== undefined && report.timestamp) {
+                        stats.bitrate = Math.round((report.bytesReceived * 8) / 1000); // kbps estimate
+                    }
+
+                    // Packet loss
+                    if (report.packetsLost !== undefined && report.packetsReceived !== undefined) {
+                        const total = report.packetsLost + report.packetsReceived;
+                        if (total > 0) {
+                            stats.packetLoss = Math.round((report.packetsLost / total) * 100 * 10) / 10;
+                        }
+                    }
+
+                    // Jitter
+                    if (report.jitter !== undefined) {
+                        stats.jitter = Math.round(report.jitter * 1000); // Convert to ms
+                    }
+                }
+            });
+        } catch (error) {
+            console.warn('📱 Could not get connection stats:', error);
+        }
+
+        return stats;
+    }
+
     // Stop screen share without closing connection (keeps data channel alive for file transfer)
     stopScreenShare() {
         console.log('📱 Stopping screen share (keeping data channel alive)');
@@ -649,6 +704,12 @@ class WebRTCService {
             return;
         }
 
+        if (this.isAudioShared) {
+            console.log('🎙️ Audio already shared, just ensuring enabled');
+            this.toggleAudio(true);
+            return;
+        }
+
         if (!this.audioStream) {
             const stream = await this.getAudioStream();
             if (!stream) {
@@ -663,6 +724,7 @@ class WebRTCService {
                 console.log('🎙️ Adding audio track to peer connection');
                 this.peerConnection.addTrack(audioTrack, this.audioStream);
                 this.audioEnabled = true;
+                this.isAudioShared = true;
                 console.log('✅ Audio track added successfully');
 
                 // IMPORTANT: Trigger renegotiation to send audio to remote peer
@@ -683,7 +745,7 @@ class WebRTCService {
 
         try {
             const offer = await this.peerConnection.createOffer({
-                offerToReceiveVideo: false,
+                offerToReceiveVideo: true, // Keep receiving video!
                 offerToReceiveAudio: true, // We want to receive audio from PC too
             } as any);
             console.log('🔄 Renegotiation offer created');

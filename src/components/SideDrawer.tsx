@@ -18,6 +18,7 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { authService } from '../services/supabaseClient';
 import { biometricService, BiometryType } from '../services/BiometricService';
+import { hapticService } from '../services/HapticService';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.85;
 const SWIPE_THRESHOLD = 50;
@@ -307,7 +308,10 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
                             title="Dark Mode"
                             subtitle="Switch to dark theme"
                             value={theme === 'dark'}
-                            onToggle={toggleTheme}
+                            onToggle={() => {
+                                hapticService.selection();
+                                toggleTheme();
+                            }}
                         />
                     </View>
 
@@ -343,7 +347,10 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
                             title="Notifications"
                             subtitle="Get notified when someone joins"
                             value={settings.notifications}
-                            onToggle={() => handleToggle('notifications')}
+                            onToggle={() => {
+                                hapticService.selection();
+                                handleToggle('notifications');
+                            }}
                         />
                         <SettingToggle
                             icon="🔊"

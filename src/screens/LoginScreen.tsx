@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { authService } from '../services/supabaseClient';
 import { biometricService, BiometryType } from '../services/BiometricService';
+import { hapticService } from '../services/HapticService';
 import { useTheme } from '../context/ThemeContext';
 import { layout } from '../theme/designSystem';
 
@@ -59,13 +60,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
     }, []);
 
     const handleBiometricLogin = async () => {
+        hapticService.medium();
         setIsLoading(true);
         const success = await biometricService.authenticate('Login to SuperDesk');
         setIsLoading(false);
         if (success) {
+            hapticService.success();
             onLogin();
             navigation.navigate('MainTabs');
         } else {
+            hapticService.error();
             // If failed, show email login
             setStep('email');
             setShowBiometricPrompt(false);
@@ -74,7 +78,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
 
 
     const handleSendOTP = async () => {
+        hapticService.medium();
         if (!email || !email.includes('@')) {
+            hapticService.error();
             Alert.alert('Error', 'Please enter a valid email address');
             return;
         }
@@ -82,9 +88,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
         setIsLoading(true);
         try {
             await authService.sendOTP(email);
+            hapticService.success();
             setStep('otp');
             Alert.alert('Code Sent', 'Check your email for the verification code');
         } catch (error: any) {
+            hapticService.error();
             Alert.alert('Error', error.message || 'Failed to send verification code');
         } finally {
             setIsLoading(false);
@@ -92,7 +100,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
     };
 
     const handleVerifyOTP = async () => {
+        hapticService.heavy();
         if (!otpCode || otpCode.length < 6) {
+            hapticService.error();
             Alert.alert('Error', 'Please enter the 6-digit code');
             return;
         }
