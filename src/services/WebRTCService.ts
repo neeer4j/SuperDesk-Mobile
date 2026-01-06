@@ -7,6 +7,7 @@ import {
 } from 'react-native-webrtc';
 import { socketService, OfferData, AnswerData, IceCandidateData } from './SocketService';
 import { fileTransferService } from './FileTransferService';
+import { Logger } from '../utils/Logger';
 
 // Server URL for fetching WebRTC config
 const SERVER_URL = 'https://superdesk-7m7f.onrender.com';
@@ -32,22 +33,22 @@ const FALLBACK_ICE_SERVERS: IceServer[] = [
 // Fetch TURN/STUN configuration from server
 async function fetchWebRTCConfig(): Promise<IceServer[]> {
     try {
-        console.log('🔧 Fetching WebRTC config from server...');
+        Logger.debug('🔧 Fetching WebRTC config from server...');
         const response = await fetch(`${SERVER_URL}/api/webrtc-config`);
 
         if (!response.ok) {
-            console.warn('⚠️ Failed to fetch WebRTC config, using fallback');
+            Logger.warn('⚠️ Failed to fetch WebRTC config, using fallback');
             return FALLBACK_ICE_SERVERS;
         }
 
         const config = await response.json();
         if (config.iceServers && config.iceServers.length > 0) {
-            console.log('✅ Using server ICE config:', config.iceServers.length, 'servers');
+            Logger.debug('✅ Using server ICE config:', config.iceServers.length, 'servers');
             return config.iceServers;
         }
         return FALLBACK_ICE_SERVERS;
     } catch (error) {
-        console.error('❌ Error fetching WebRTC config:', error);
+        Logger.error('❌ Error fetching WebRTC config:', error);
         return FALLBACK_ICE_SERVERS;
     }
 }
@@ -104,13 +105,13 @@ class WebRTCService {
     async initialize(role: ConnectionRole, sessionId?: string): Promise<void> {
         // Prevent double-initialization for same session
         if (this.peerConnection && this.sessionId === sessionId) {
-            console.log('📱 WebRTC already initialized for session:', sessionId);
+            Logger.debug('📱 WebRTC already initialized for session:', sessionId);
             return;
         }
 
         // Clean up old connection if session changed
         if (this.peerConnection && this.sessionId !== sessionId) {
-            console.log('📱 Different session, cleaning up old connection');
+            Logger.debug('📱 Different session, cleaning up old connection');
             this.close();
         }
 
@@ -142,7 +143,7 @@ class WebRTCService {
                 if (candidateStr.includes('typ host')) type = 'host (direct)';
                 else if (candidateStr.includes('typ srflx')) type = 'srflx (STUN)';
                 else if (candidateStr.includes('typ relay')) type = 'relay (TURN)';
-                console.log(`📱 ICE candidate: ${type}`);
+                Logger.debug(`📱 ICE candidate: ${type}`);
 
                 socketService.sendIceCandidate(this.sessionId, event.candidate.toJSON());
             }
@@ -151,9 +152,9 @@ class WebRTCService {
         // Handle ICE connection state for restart on failure
         (this.peerConnection as any).oniceconnectionstatechange = () => {
             const state = (this.peerConnection as any)?.iceConnectionState;
-            console.log('📱 ICE connection state:', state);
+            Logger.debug('📱 ICE connection state:', state);
             if (state === 'failed') {
-                console.log('📱 ICE failed, attempting restart...');
+                Logger.debug('📱 ICE failed, attempting restart...');
                 this.restartIce();
             }
         };
@@ -161,14 +162,14 @@ class WebRTCService {
         // Handle remote stream (for viewer) - includes video and audio tracks
         (this.peerConnection as any).ontrack = (event: RTCTrackEvent) => {
             const track = event.track;
-            console.log('📱 Received remote track:', track.kind);
-            console.log('   - Track ID:', track.id);
-            console.log('   - Track enabled:', (track as any).enabled);
-            console.log('   - Track readyState:', track.readyState);
-            console.log('   - Streams count:', event.streams?.length || 0);
+            Logger.debug('📱 Received remote track:', track.kind);
+            Logger.debug('   - Track ID:', track.id);
+            Logger.debug('   - Track enabled:', (track as any).enabled);
+            Logger.debug('   - Track readyState:', track.readyState);
+            Logger.debug('   - Streams count:', event.streams?.length || 0);
 
             if (track.kind === 'audio') {
-                console.log('🔊 Audio track received from remote peer!');
+                Logger.debug('🔊 Audio track received from remote peer!');
                 // For React Native WebRTC, audio playback happens automatically
                 // when the track is added to a MediaStream that's attached to RTCView
                 // However, for audio-only tracks, we may need InCallManager
@@ -176,9 +177,9 @@ class WebRTCService {
 
             if (event.streams && event.streams[0]) {
                 this.remoteStream = event.streams[0];
-                console.log('📱 Remote stream updated:');
-                console.log('   - Video tracks:', this.remoteStream.getVideoTracks().length);
-                console.log('   - Audio tracks:', this.remoteStream.getAudioTracks().length);
+                Logger.debug('📱 Remote stream updated:');
+                Logger.debug('   - Video tracks:', this.remoteStream.getVideoTracks().length);
+                Logger.debug('   - Audio tracks:', this.remoteStream.getAudioTracks().length);
                 this.onRemoteStreamCallback?.(this.remoteStream);
             }
         };
@@ -186,7 +187,7 @@ class WebRTCService {
         // Handle connection state changes
         (this.peerConnection as any).onconnectionstatechange = () => {
             const state = (this.peerConnection as any)?.connectionState || 'unknown';
-            console.log('📱 Connection state:', state);
+            Logger.debug('📱 Connection state:', state);
             this.onConnectionStateChangeCallback?.(state as ConnectionState);
         };
 
@@ -196,7 +197,7 @@ class WebRTCService {
             this.setupFileDataChannel();
         } else {
             (this.peerConnection as any).ondatachannel = (event: RTCDataChannelEvent) => {
-                console.log('📱 Data channel received:', event.channel.label);
+                Logger.debug('📱 Data channel received:', event.channel.label);
                 if (event.channel.label === 'files' || event.channel.label === 'file-transfer' || event.channel.label === 'fileTransfer') {
                     this.fileDataChannel = event.channel;
                     this.setupFileDataChannelHandlers();
@@ -233,17 +234,17 @@ class WebRTCService {
         if (!this.fileDataChannel) return;
 
         if (this.fileDataChannel.readyState === 'open') {
-            console.log('📁 File data channel already open');
+            Logger.debug('📁 File data channel already open');
             fileTransferService.setDataChannel(this.fileDataChannel as any);
         }
 
         this.fileDataChannel.onopen = () => {
-            console.log('📁 File data channel opened');
+            Logger.debug('📁 File data channel opened');
             fileTransferService.setDataChannel(this.fileDataChannel as any);
         };
 
         this.fileDataChannel.onclose = () => {
-            console.log('📁 File data channel closed');
+            Logger.debug('📁 File data channel closed');
         };
     }
 
@@ -251,7 +252,7 @@ class WebRTCService {
         if (!this.dataChannel) return;
 
         this.dataChannel.onopen = () => {
-            console.log('📱 Data channel opened - ready for low-latency input');
+            Logger.debug('📱 Data channel opened - ready for low-latency input');
             // Send handshake to PC to identify as Android
             try {
                 this.dataChannel?.send(JSON.stringify({
@@ -259,7 +260,7 @@ class WebRTCService {
                     action: 'handshake',
                     data: { platform: 'android' }
                 }));
-                console.log('📱 Sent handshake to PC');
+                Logger.debug('📱 Sent handshake to PC');
             } catch (e) {
                 console.warn('📱 Failed to send handshake:', e);
             }
@@ -267,12 +268,12 @@ class WebRTCService {
         };
 
         this.dataChannel.onmessage = (event: { data: string }) => {
-            console.log('📱 Data channel received:', event.data.substring(0, 100));
+            Logger.debug('📱 Data channel received:', event.data.substring(0, 100));
             this.onDataChannelMessageCallback?.(event.data);
         };
 
         this.dataChannel.onclose = () => {
-            console.log('📱 Data channel closed');
+            Logger.debug('📱 Data channel closed');
         };
 
         this.dataChannel.onerror = (error: any) => {
@@ -284,7 +285,7 @@ class WebRTCService {
         // Handle incoming offer (as viewer/guest)
         socketService.onOffer(async (data: OfferData) => {
             if (!this.peerConnection) return;
-            console.log('📱 Processing offer...');
+            Logger.debug('📱 Processing offer...');
 
             try {
                 await this.peerConnection.setRemoteDescription(
@@ -309,7 +310,7 @@ class WebRTCService {
         // Handle incoming answer (as host)
         socketService.onAnswer(async (data: AnswerData) => {
             if (!this.peerConnection) return;
-            console.log('📱 Processing answer...');
+            Logger.debug('📱 Processing answer...');
 
             try {
                 await this.peerConnection.setRemoteDescription(
@@ -338,7 +339,7 @@ class WebRTCService {
                 }
             } else {
                 // Buffer candidate until remote description is set
-                console.log('📱 Buffering ICE candidate');
+                Logger.debug('📱 Buffering ICE candidate');
                 this.pendingIceCandidates.push(candidate);
             }
         });
@@ -347,7 +348,7 @@ class WebRTCService {
     private async addPendingIceCandidates() {
         if (!this.peerConnection) return;
 
-        console.log('📱 Adding', this.pendingIceCandidates.length, 'buffered ICE candidates');
+        Logger.debug('📱 Adding', this.pendingIceCandidates.length, 'buffered ICE candidates');
         for (const candidate of this.pendingIceCandidates) {
             try {
                 await this.peerConnection.addIceCandidate(candidate);
@@ -381,21 +382,21 @@ class WebRTCService {
         }
 
         try {
-            console.log('📱 Creating offer...');
-            console.log('📱 Peer connection senders:', (this.peerConnection as any).getSenders?.()?.length || 'unknown');
+            Logger.debug('📱 Creating offer...');
+            Logger.debug('📱 Peer connection senders:', (this.peerConnection as any).getSenders?.()?.length || 'unknown');
 
             const offer = await this.peerConnection.createOffer({
                 offerToReceiveVideo: false, // We're sending, not receiving
                 offerToReceiveAudio: false,
             } as any);
 
-            console.log('📱 Offer created, SDP length:', offer.sdp?.length || 0);
+            Logger.debug('📱 Offer created, SDP length:', offer.sdp?.length || 0);
 
             await this.peerConnection.setLocalDescription(offer);
-            console.log('📱 Local description set');
+            Logger.debug('📱 Local description set');
 
             socketService.sendOffer(this.sessionId, offer);
-            console.log('📱 Offer sent to session:', this.sessionId);
+            Logger.debug('📱 Offer sent to session:', this.sessionId);
         } catch (error) {
             console.error('❌ Error creating offer:', error);
         }
@@ -410,17 +411,17 @@ class WebRTCService {
 
         this.localStream = stream;
         const tracks = stream.getTracks();
-        console.log('📱 Adding stream with', tracks.length, 'tracks');
+        Logger.debug('📱 Adding stream with', tracks.length, 'tracks');
         tracks.forEach((track) => {
             // Ensure track is enabled (not muted)
             if (!track.enabled) {
-                console.log('📱 Enabling track:', track.kind);
+                Logger.debug('📱 Enabling track:', track.kind);
                 track.enabled = true;
             }
-            console.log('📱 Adding track:', track.kind, 'enabled:', track.enabled, 'readyState:', track.readyState, 'muted:', (track as any).muted);
+            Logger.debug('📱 Adding track:', track.kind, 'enabled:', track.enabled, 'readyState:', track.readyState, 'muted:', (track as any).muted);
             this.peerConnection?.addTrack(track, stream);
         });
-        console.log('📱 All tracks added to peer connection');
+        Logger.debug('📱 All tracks added to peer connection');
 
         // Configure low-latency encoding for video senders
         this.configureVideoEncoders();
@@ -432,7 +433,7 @@ class WebRTCService {
 
         try {
             const senders = (this.peerConnection as any).getSenders?.() || [];
-            console.log('📱 Configuring', senders.length, 'senders for LOW LATENCY');
+            Logger.debug('📱 Configuring', senders.length, 'senders for LOW LATENCY');
 
             for (const sender of senders) {
                 if (sender.track?.kind === 'video') {
@@ -456,7 +457,7 @@ class WebRTCService {
                         params.degradationPreference = 'maintain-framerate';
 
                         await sender.setParameters(params);
-                        console.log('📱 ✅ Low-latency encoding configured:', {
+                        Logger.debug('📱 ✅ Low-latency encoding configured:', {
                             maxBitrate: params.encodings[0].maxBitrate,
                             maxFramerate: params.encodings[0].maxFramerate,
                             degradation: params.degradationPreference,
@@ -478,10 +479,10 @@ class WebRTCService {
                 const elapsed = Date.now() - startTime;
                 const isReady = track.readyState === 'live' && !track.muted;
 
-                console.log(`📱 Track check [${elapsed}ms]: readyState=${track.readyState}, muted=${track.muted}, enabled=${track.enabled}`);
+                Logger.debug(`📱 Track check [${elapsed}ms]: readyState=${track.readyState}, muted=${track.muted}, enabled=${track.enabled}`);
 
                 if (isReady) {
-                    console.log('📱 ✅ Track is ready for streaming!');
+                    Logger.debug('📱 ✅ Track is ready for streaming!');
                     resolve(true);
                 } else if (elapsed >= timeoutMs) {
                     console.warn(`📱 ⚠️ Track readiness timeout after ${timeoutMs}ms`);
@@ -495,10 +496,10 @@ class WebRTCService {
 
             // Also listen for track events
             track.onunmute = () => {
-                console.log('📱 Track unmuted event received');
+                Logger.debug('📱 Track unmuted event received');
             };
             track.onended = () => {
-                console.log('📱 Track ended event received');
+                Logger.debug('📱 Track ended event received');
             };
 
             checkTrack();
@@ -508,7 +509,7 @@ class WebRTCService {
     // Get screen capture stream (mobile hosting)
     async getDisplayMedia(): Promise<MediaStream | null> {
         try {
-            console.log('📱 Calling mediaDevices.getDisplayMedia...');
+            Logger.debug('📱 Calling mediaDevices.getDisplayMedia...');
             const stream = await (mediaDevices as any).getDisplayMedia({
                 video: {
                     // 720p at 30fps - hardware encoding can handle this with low latency
@@ -521,27 +522,27 @@ class WebRTCService {
 
             if (stream) {
                 const tracks = stream.getTracks();
-                console.log('📱 getDisplayMedia success! Got', tracks.length, 'tracks');
+                Logger.debug('📱 getDisplayMedia success! Got', tracks.length, 'tracks');
 
                 for (const track of tracks) {
                     // CRITICAL: Ensure track is enabled immediately
                     track.enabled = true;
-                    console.log('📱 Track:', track.kind, 'enabled:', track.enabled, 'readyState:', track.readyState, 'muted:', track.muted);
+                    Logger.debug('📱 Track:', track.kind, 'enabled:', track.enabled, 'readyState:', track.readyState, 'muted:', track.muted);
 
                     const settings = track.getSettings?.() || {};
-                    console.log('📱 Track settings:', JSON.stringify(settings));
+                    Logger.debug('📱 Track settings:', JSON.stringify(settings));
 
                     // Wait for the track to actually be ready
                     if (track.kind === 'video') {
-                        console.log('📱 Waiting for video track to be ready...');
+                        Logger.debug('📱 Waiting for video track to be ready...');
                         await this.waitForTrackReady(track, 5000);
 
                         // Additional delay for MediaProjection to stabilize
-                        console.log('📱 Adding stabilization delay...');
+                        Logger.debug('📱 Adding stabilization delay...');
                         await new Promise<void>(r => setTimeout(r, 500));
 
                         // Log final state
-                        console.log('📱 Final track state: readyState:', track.readyState, 'muted:', track.muted, 'enabled:', track.enabled);
+                        Logger.debug('📱 Final track state: readyState:', track.readyState, 'muted:', track.muted, 'enabled:', track.enabled);
                     }
                 }
             }
@@ -655,10 +656,10 @@ class WebRTCService {
 
     // Stop screen share without closing connection (keeps data channel alive for file transfer)
     stopScreenShare() {
-        console.log('📱 Stopping screen share (keeping data channel alive)');
+        Logger.debug('📱 Stopping screen share (keeping data channel alive)');
         if (this.localStream) {
             this.localStream.getTracks().forEach((track) => {
-                console.log('📱 Stopping track:', track.kind);
+                Logger.debug('📱 Stopping track:', track.kind);
                 track.stop();
             });
             this.localStream = null;
@@ -671,7 +672,7 @@ class WebRTCService {
     // Get audio-only stream for voice chat (no video on Android to save CPU)
     async getAudioStream(): Promise<MediaStream | null> {
         try {
-            console.log('🎙️ Getting audio stream for voice chat...');
+            Logger.debug('🎙️ Getting audio stream for voice chat...');
             const stream = await mediaDevices.getUserMedia({
                 audio: {
                     echoCancellation: true,
@@ -683,9 +684,9 @@ class WebRTCService {
 
             if (stream) {
                 const tracks = stream.getTracks();
-                console.log('🎙️ Audio stream obtained:', tracks.length, 'tracks');
+                Logger.debug('🎙️ Audio stream obtained:', tracks.length, 'tracks');
                 tracks.forEach(track => {
-                    console.log('🎙️ Audio track:', track.kind, 'enabled:', track.enabled);
+                    Logger.debug('🎙️ Audio track:', track.kind, 'enabled:', track.enabled);
                 });
                 this.audioStream = stream;
             }
@@ -705,7 +706,7 @@ class WebRTCService {
         }
 
         if (this.isAudioShared) {
-            console.log('🎙️ Audio already shared, just ensuring enabled');
+            Logger.debug('🎙️ Audio already shared, just ensuring enabled');
             this.toggleAudio(true);
             return;
         }
@@ -721,11 +722,11 @@ class WebRTCService {
         if (this.audioStream) {
             const audioTrack = this.audioStream.getAudioTracks()[0];
             if (audioTrack) {
-                console.log('🎙️ Adding audio track to peer connection');
+                Logger.debug('🎙️ Adding audio track to peer connection');
                 this.peerConnection.addTrack(audioTrack, this.audioStream);
                 this.audioEnabled = true;
                 this.isAudioShared = true;
-                console.log('✅ Audio track added successfully');
+                Logger.debug('✅ Audio track added successfully');
 
                 // IMPORTANT: Trigger renegotiation to send audio to remote peer
                 // This is required when adding tracks mid-session
@@ -741,20 +742,20 @@ class WebRTCService {
             return;
         }
 
-        console.log('🔄 Triggering renegotiation for new audio track...');
+        Logger.debug('🔄 Triggering renegotiation for new audio track...');
 
         try {
             const offer = await this.peerConnection.createOffer({
                 offerToReceiveVideo: true, // Keep receiving video!
                 offerToReceiveAudio: true, // We want to receive audio from PC too
             } as any);
-            console.log('🔄 Renegotiation offer created');
+            Logger.debug('🔄 Renegotiation offer created');
 
             await this.peerConnection.setLocalDescription(offer);
-            console.log('🔄 Local description set');
+            Logger.debug('🔄 Local description set');
 
             socketService.sendOffer(this.sessionId, offer);
-            console.log('🔄 ✅ Renegotiation offer sent - audio should now be transmitted');
+            Logger.debug('🔄 ✅ Renegotiation offer sent - audio should now be transmitted');
         } catch (error) {
             console.error('🔄 ❌ Renegotiation failed:', error);
         }
@@ -766,7 +767,7 @@ class WebRTCService {
             const audioTracks = this.audioStream.getAudioTracks();
             audioTracks.forEach(track => {
                 track.enabled = enabled;
-                console.log('🎙️ Audio track', enabled ? 'ENABLED' : 'DISABLED');
+                Logger.debug('🎙️ Audio track', enabled ? 'ENABLED' : 'DISABLED');
             });
         }
         this.audioEnabled = enabled;
@@ -782,7 +783,7 @@ class WebRTCService {
         if (this.audioStream) {
             this.audioStream.getTracks().forEach(track => {
                 track.stop();
-                console.log('🛑 Stopped audio track');
+                Logger.debug('🛑 Stopped audio track');
             });
             this.audioStream = null;
         }
@@ -795,17 +796,17 @@ class WebRTCService {
             throw new Error('No peer connection - call initialize() first');
         }
 
-        console.log('📱 Adding screen track to existing connection...');
+        Logger.debug('📱 Adding screen track to existing connection...');
         this.localStream = stream;
 
         const tracks = stream.getTracks();
-        console.log('📱 Adding', tracks.length, 'tracks');
+        Logger.debug('📱 Adding', tracks.length, 'tracks');
 
         tracks.forEach((track) => {
             if (!track.enabled) {
                 track.enabled = true;
             }
-            console.log('📱 Adding track:', track.kind, 'enabled:', track.enabled);
+            Logger.debug('📱 Adding track:', track.kind, 'enabled:', track.enabled);
             this.peerConnection?.addTrack(track, stream);
         });
 
@@ -813,7 +814,7 @@ class WebRTCService {
         this.configureVideoEncoders();
 
         // Renegotiate to notify peer of new track
-        console.log('📱 Renegotiating with new track...');
+        Logger.debug('📱 Renegotiating with new track...');
         await this.createOffer();
     }
 
@@ -824,7 +825,7 @@ class WebRTCService {
 
     // Cleanup
     close() {
-        console.log('📱 Closing WebRTC connection');
+        Logger.debug('📱 Closing WebRTC connection');
 
         this.dataChannel?.close();
         this.fileDataChannel?.close();

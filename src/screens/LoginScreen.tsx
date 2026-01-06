@@ -1,4 +1,7 @@
 // Simple, Clean Login Screen - Polished with curves and real icons
+
+import { Logger } from '../utils/Logger';
+// Simple, Clean Login Screen - Polished with curves and real icons
 import React, { useState, useEffect } from 'react';
 import {
     KeyboardAvoidingView,
@@ -39,13 +42,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
     // Check biometric availability and auto-prompt on mount
     useEffect(() => {
         const checkBiometrics = async () => {
-            console.log('📱 LoginScreen: Checking biometrics...');
+            Logger.debug('📱 LoginScreen: Checking biometrics...');
             const type = await biometricService.checkAvailability();
             setBiometryType(type);
 
             if (type) {
                 const isAuthRequired = await biometricService.isAuthRequired();
-                console.log('📱 LoginScreen: Auth required?', isAuthRequired);
+                Logger.debug('📱 LoginScreen: Auth required?', isAuthRequired);
 
                 if (isAuthRequired) {
                     setIsBiometricsReady(true);

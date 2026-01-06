@@ -1,6 +1,7 @@
 // BiometricService.ts - Handles biometric authentication (FaceID/TouchID/Fingerprint)
 import ReactNativeBiometrics, { BiometryType } from 'react-native-biometrics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Logger } from '../utils/Logger';
 
 const BIOMETRICS_ENABLED_KEY = '@superdesk_biometrics_enabled';
 const BIOMETRICS_TIMEOUT_KEY = '@superdesk_biometrics_timeout';
@@ -27,7 +28,7 @@ class BiometricService {
         try {
             const { available, biometryType } = await this.rnBiometrics.isSensorAvailable();
             if (available) {
-                console.log('📱 Biometrics available:', biometryType);
+                Logger.debug('📱 Biometrics available:', biometryType);
                 return biometryType as BiometryType;
             }
             return null;
@@ -112,7 +113,7 @@ class BiometricService {
             const now = Date.now();
             const elapsedMinutes = (now - lastAuth) / (1000 * 60);
 
-            console.log('📱 Biometric timeout check:', { timeout, elapsedMinutes, required: elapsedMinutes >= timeout });
+            Logger.debug('📱 Biometric timeout check:', { timeout, elapsedMinutes, required: elapsedMinutes >= timeout });
             return elapsedMinutes >= timeout;
         } catch {
             return true;

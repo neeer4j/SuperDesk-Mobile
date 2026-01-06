@@ -1,6 +1,7 @@
 // File Transfer Service - WebRTC data channel file transfers
 import RNFS from 'react-native-fs';
 import { Platform } from 'react-native';
+import { Logger } from '../utils/Logger';
 
 // Type declarations for browser globals
 declare function atob(data: string): string;
@@ -116,11 +117,11 @@ class FileTransferService {
         };
 
         this.dataChannel.onopen = () => {
-            console.log('📁 File transfer channel opened');
+            Logger.debug('📁 File transfer channel opened');
         };
 
         this.dataChannel.onclose = () => {
-            console.log('📁 File transfer channel closed');
+            Logger.debug('📁 File transfer channel closed');
             this.activeTransfers.forEach(t => {
                 if (t.status === 'transferring' || t.status === 'pending' || t.status === 'waiting-for-accept') {
                     t.status = 'failed';
@@ -159,7 +160,7 @@ class FileTransferService {
         const { name, size, mimeType } = message;
         if (!name || !size) return;
 
-        console.log(`📁 Receiving file offer: ${name} (${this.formatSize(size)})`);
+        Logger.debug(`📁 Receiving file offer: ${name} (${this.formatSize(size)})`);
 
         // For now, AUTO ACCEPT to simplify (matches current Android logic)
         // In future we can add UI dialog to accept/reject
@@ -210,7 +211,7 @@ class FileTransferService {
     private async handleFileEOF(message: FileTransferMessage) {
         if (!this.receivingInProgress) return;
 
-        console.log('📁 File transfer complete (EOF)');
+        Logger.debug('📁 File transfer complete (EOF)');
         const id = this.expectedFileName;
         const transfer = this.activeTransfers.get(id);
 
@@ -236,7 +237,7 @@ class FileTransferService {
             const filePath = `${downloadsPath}/${this.expectedFileName}`;
 
             await RNFS.writeFile(filePath, fullBase64, 'base64');
-            console.log(`✅ File saved: ${filePath}`);
+            Logger.debug(`✅ File saved: ${filePath}`);
 
             if (transfer) {
                 transfer.status = 'completed';
@@ -300,7 +301,7 @@ class FileTransferService {
         this.pendingSendFile = file;
         this.pendingSendId = transferId;
 
-        console.log(`📤 Sending file OFFER: ${file.name} (${this.formatSize(file.size)})`);
+        Logger.debug(`📤 Sending file OFFER: ${file.name} (${this.formatSize(file.size)})`);
 
         const progress: TransferProgress = {
             id: transferId,
@@ -337,7 +338,7 @@ class FileTransferService {
             return;
         }
 
-        console.log('📁 Peer accepted file, starting transfer...');
+        Logger.debug('📁 Peer accepted file, starting transfer...');
 
         const file = this.pendingSendFile;
         const id = this.pendingSendId;
@@ -369,7 +370,7 @@ class FileTransferService {
             for (let i = 0; i < totalChunks; i++) {
                 // Check if cancelled
                 if (this.activeTransfers.get(id)?.status === 'cancelled') {
-                    console.log('📁 Transfer cancelled during send');
+                    Logger.debug('📁 Transfer cancelled during send');
                     return;
                 }
 
@@ -401,7 +402,7 @@ class FileTransferService {
                 totalBytes: offset
             });
 
-            console.log('✅ File transfer complete');
+            Logger.debug('✅ File transfer complete');
 
             if (transfer) {
                 transfer.status = 'completed';
@@ -424,7 +425,7 @@ class FileTransferService {
     }
 
     private handleFileReject() {
-        console.log('📁 File offer rejected');
+        Logger.debug('📁 File offer rejected');
         if (this.pendingSendId) {
             const transfer = this.activeTransfers.get(this.pendingSendId);
             if (transfer) {
@@ -438,7 +439,7 @@ class FileTransferService {
     }
 
     private handleFileCancel() {
-        console.log('📁 Transfer cancelled by peer');
+        Logger.debug('📁 Transfer cancelled by peer');
         this.receivingInProgress = false;
         this.receivedChunks = [];
         // Update UI if needed

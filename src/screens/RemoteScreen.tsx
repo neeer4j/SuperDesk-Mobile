@@ -1,4 +1,7 @@
 // Remote Screen - View and control remote PC
+
+import { Logger } from '../utils/Logger';
+// Remote Screen - View and control remote PC
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
@@ -110,7 +113,7 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
         // Update input service with actual video dimensions
         inputService.setViewSize(displayWidth, displayHeight);
 
-        console.log('📱 Video display area calculated:', {
+        Logger.debug('📱 Video display area calculated:', {
             container: containerDimensions,
             video: streamDimensions,
             display: { width: displayWidth, height: displayHeight },
@@ -127,7 +130,7 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
         if (currentState !== 'connected' && currentState !== 'connecting') {
             initializeConnection();
         } else {
-            console.log('📱 Already connected, checking for existing stream');
+            Logger.debug('📱 Already connected, checking for existing stream');
             setConnectionState('connected');
             const stream = webRTCService.getRemoteStream();
             if (stream) {
@@ -243,15 +246,15 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
 
     const setupRemoteStreamListener = () => {
         webRTCService.onRemoteStream((stream) => {
-            console.log('📱 Got remote stream!');
+            Logger.debug('📱 Got remote stream!');
             setRemoteStream(stream);
             // NOTE: Don't auto-enable remote control here
             // Wait for server to signal when host enables it
-            console.log('📱 Stream received, waiting for host to enable control');
+            Logger.debug('📱 Stream received, waiting for host to enable control');
         });
 
         webRTCService.onConnectionStateChange((state) => {
-            console.log('📱 Connection state:', state);
+            Logger.debug('📱 Connection state:', state);
             setConnectionState(state);
 
             if (state === 'failed') {
@@ -270,14 +273,14 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
         });
 
         webRTCService.onDataChannelOpen(() => {
-            console.log('📱 Data channel ready for input!');
+            Logger.debug('📱 Data channel ready for input!');
             // Configure input service when data channel opens
             inputService.setViewSize(SCREEN_WIDTH, SCREEN_HEIGHT);
             inputService.setSessionId(sessionId);
 
             // AUTO-REQUEST remote control when data channel is ready
             // This tells the host we want to control their desktop
-            console.log('📱 Auto-requesting remote control from host...');
+            Logger.debug('📱 Auto-requesting remote control from host...');
             socketService.enableRemoteControl(sessionId);
         });
     };
@@ -308,7 +311,7 @@ const RemoteScreen: React.FC<RemoteScreenProps> = ({ route, navigation }) => {
         const height = settings?.height || (videoTrack as any).height || 0;
 
         if (width > 0 && height > 0) {
-            console.log('📱 Detected stream resolution:', width, 'x', height);
+            Logger.debug('📱 Detected stream resolution:', width, 'x', height);
             setStreamDimensions(prev => {
                 if (prev.width !== width || prev.height !== height) {
                     return { width, height };

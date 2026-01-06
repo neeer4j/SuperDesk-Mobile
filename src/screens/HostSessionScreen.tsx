@@ -1,4 +1,7 @@
 // Host Session Screen - Share your device screen with session code
+
+import { Logger } from '../utils/Logger';
+// Host Session Screen - Share your device screen with session code
 // Redesigned to use SessionManager for persistent sessions across tabs
 import React, { useState, useCallback, useEffect } from 'react';
 import {
@@ -61,14 +64,14 @@ const HostSessionScreen: React.FC<HostSessionScreenProps> = ({ navigation }) => 
 
         // Listen for guest joined event
         const handleGuestJoined = (data: { guestId: string; sessionId: string }) => {
-            console.log('📱 Guest joined:', data.guestId);
+            Logger.debug('📱 Guest joined:', data.guestId);
             setGuestId(data.guestId);
             setConnectionStatus('guest-connected');
 
             // AUTOMATICALLY Initialize WebRTC connection for file transfer
             const initDataConnection = async () => {
                 try {
-                    console.log('📱 Initializing WebRTC data connection...');
+                    Logger.debug('📱 Initializing WebRTC data connection...');
                     await webRTCService.initialize('host', data.sessionId);
 
                     // Wait a moment for initialization
@@ -76,7 +79,7 @@ const HostSessionScreen: React.FC<HostSessionScreenProps> = ({ navigation }) => 
 
                     // Create offer to establish data channel
                     await webRTCService.createOffer();
-                    console.log('📱 Data connection offer sent');
+                    Logger.debug('📱 Data connection offer sent');
                 } catch (err) {
                     console.error('❌ Failed to init data connection:', err);
                 }

@@ -1,4 +1,7 @@
 // Supabase Client Configuration with OTP Auth
+
+import { Logger } from '../utils/Logger';
+// Supabase Client Configuration with OTP Auth
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, Session, User } from '@supabase/supabase-js';
@@ -91,7 +94,7 @@ export const authService = {
             .single();
 
         if (error || !profile) {
-            console.log('Profile fetch error:', error);
+            Logger.debug('Profile fetch error:', error);
             // Return fallback with auth data
             return {
                 id: user.id,

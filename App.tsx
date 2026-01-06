@@ -6,6 +6,7 @@ import { GluestackUIProvider } from '@gluestack-ui/themed';
 import { config } from '@gluestack-ui/config';
 import Navigation from './src/navigation/Navigation';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { Logger } from './src/utils/Logger';
 
 // Ignore specific warnings
 LogBox.ignoreLogs([
@@ -33,7 +34,7 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   useEffect(() => {
     // App initialization logic
-    console.log('🚀 SuperDesk Mobile started');
+    Logger.info('🚀 SuperDesk Mobile started');
   }, []);
 
   return (

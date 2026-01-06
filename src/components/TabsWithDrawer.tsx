@@ -1,4 +1,7 @@
 // Updated Tab Navigator with Drawer Integration
+
+import { Logger } from '../utils/Logger';
+// Updated Tab Navigator with Drawer Integration
 import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -54,7 +57,7 @@ const TabsWithDrawer: React.FC<TabsWithDrawerProps> = ({ navigation }) => {
             const profile = await authService.getUserProfile();
             setUserProfile(profile);
         } catch (error) {
-            console.log('Failed to load profile:', error);
+            Logger.debug('Failed to load profile:', error);
         }
     };
 

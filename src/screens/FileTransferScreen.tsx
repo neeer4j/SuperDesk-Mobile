@@ -1,4 +1,7 @@
 // File Transfer Screen - Send and receive files via WebRTC
+
+import { Logger } from '../utils/Logger';
+// File Transfer Screen - Send and receive files via WebRTC
 // Redesigned with new Design System
 import React, { useState, useEffect } from 'react';
 import {
@@ -99,7 +102,7 @@ const FileTransferScreen: React.FC<FileTransferScreenProps> = ({ navigation }) =
 
         // Periodic check for data channel readiness
         const sessionEndListener = () => {
-            console.log('📱 Session ended detected in FileTransferScreen');
+            Logger.debug('📱 Session ended detected in FileTransferScreen');
             setIsChannelReady(false);
             setIncomingCount(0);
             setTransfers([]);

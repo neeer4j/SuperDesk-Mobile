@@ -1,4 +1,7 @@
 // Join Session Screen - Connect to a remote session with code
+
+import { Logger } from '../utils/Logger';
+// Join Session Screen - Connect to a remote session with code
 // Redesigned to use SessionManager for persistent sessions across tabs
 import React, { useState, useEffect } from 'react';
 import {
@@ -43,7 +46,7 @@ const JoinSessionScreen: React.FC<JoinSessionScreenProps> = ({ navigation }) => 
             setStatus('connected');
             setHostConnected(true);
         } else if (state.isActive && state.role === 'guest' && !isSocketConnected) {
-            console.log('📱 Clearing stale session state - socket disconnected');
+            Logger.debug('📱 Clearing stale session state - socket disconnected');
             sessionManager.endSession();
         }
 
@@ -115,11 +118,11 @@ const JoinSessionScreen: React.FC<JoinSessionScreenProps> = ({ navigation }) => 
 
         try {
             await sessionManager.joinSession(sessionCode);
-            console.log('✅ Joined session successfully');
+            Logger.debug('✅ Joined session successfully');
             setStatus('connected');
 
             try {
-                console.log('📱 Initializing WebRTC listener...');
+                Logger.debug('📱 Initializing WebRTC listener...');
                 await webRTCService.initialize('viewer', sessionCode);
             } catch (err) {
                 console.error('❌ Failed to init WebRTC:', err);

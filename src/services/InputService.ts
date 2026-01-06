@@ -1,4 +1,7 @@
 // Input service for translating touch gestures to mouse/keyboard events
+
+import { Logger } from '../utils/Logger';
+// Input service for translating touch gestures to mouse/keyboard events
 // Uses WebRTC data channel for lowest latency (P2P) with Socket.IO fallback
 import { webRTCService } from './WebRTCService';
 import { socketService } from './SocketService';
@@ -49,15 +52,15 @@ class InputService {
     // Send input event - uses data channel if available, Socket.IO as fallback
     private sendInput = (event: InputEvent) => {
         const dataChannelOpen = webRTCService.isDataChannelOpen();
-        console.log(`📱 Sending input: ${event.type}:${event.action}, dataChannel=${dataChannelOpen}, sessionId=${this.sessionId}`);
+        Logger.debug(`📱 Sending input: ${event.type}:${event.action}, dataChannel=${dataChannelOpen}, sessionId=${this.sessionId}`);
 
         // Try data channel first (lowest latency - P2P)
         if (this.preferDataChannel && dataChannelOpen) {
-            console.log('📱 Using data channel for input');
+            Logger.debug('📱 Using data channel for input');
             webRTCService.sendInputEvent(event);
         } else if (this.sessionId) {
             // Fallback to Socket.IO
-            console.log('📱 Using Socket.IO fallback for input');
+            Logger.debug('📱 Using Socket.IO fallback for input');
             if (event.type === 'mouse') {
                 socketService.sendMouseEvent(
                     this.sessionId,

@@ -1,4 +1,7 @@
 // TypeScript wrapper for the native RemoteControlModule
+
+import { Logger } from '../utils/Logger';
+// TypeScript wrapper for the native RemoteControlModule
 import { NativeModules, Platform } from 'react-native';
 
 const { RemoteControlModule } = NativeModules;
@@ -139,18 +142,18 @@ class RemoteControlService {
                 switch (action) {
                     case 'click':
                     case 'tap':
-                        console.log('📱 Tap at:', data.x, data.y);
+                        Logger.debug('📱 Tap at:', data.x, data.y);
                         return await this.performTap(data.x, data.y);
 
                     case 'down':
                         // Mouse down - store position for potential drag or click
-                        console.log('📱 Mouse down at:', data.x, data.y);
+                        Logger.debug('📱 Mouse down at:', data.x, data.y);
                         // For now, just track it - actual tap happens on 'up'
                         return true;
 
                     case 'up':
                         // Mouse up - perform tap at this position
-                        console.log('📱 Mouse up (tap) at:', data.x, data.y);
+                        Logger.debug('📱 Mouse up (tap) at:', data.x, data.y);
                         return await this.performTap(data.x, data.y);
 
                     case 'move':
@@ -169,7 +172,7 @@ class RemoteControlService {
 
                     case 'scroll':
                     case 'wheel':
-                        console.log('📱 Scroll at:', data.x, data.y, 'delta:', data.deltaX, data.deltaY);
+                        Logger.debug('📱 Scroll at:', data.x, data.y, 'delta:', data.deltaX, data.deltaY);
                         return await this.performScroll(
                             data.x || 0.5,
                             data.y || 0.5,
@@ -217,7 +220,7 @@ class RemoteControlService {
                         }
                         break;
                 }
-                console.log('Keyboard event processed:', action, data.key);
+                Logger.debug('Keyboard event processed:', action, data.key);
                 return true;
             }
 

@@ -1,4 +1,7 @@
 // Settings Screen - Matching Desktop Design
+
+import { Logger } from '../utils/Logger';
+// Settings Screen - Matching Desktop Design
 import React, { useState, useEffect } from 'react';
 import {
     View,
@@ -51,17 +54,17 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
 
     const loadBiometricSettings = async () => {
         try {
-            console.log('📱 SettingsScreen: Checking biometric availability...');
+            Logger.debug('📱 SettingsScreen: Checking biometric availability...');
             const type = await biometricService.checkAvailability();
-            console.log('📱 SettingsScreen: Biometry type:', type);
+            Logger.debug('📱 SettingsScreen: Biometry type:', type);
             setBiometryType(type);
             if (type) {
                 const enabled = await biometricService.isEnabled();
-                console.log('📱 SettingsScreen: Biometrics enabled:', enabled);
+                Logger.debug('📱 SettingsScreen: Biometrics enabled:', enabled);
                 setBiometricsEnabled(enabled);
             }
         } catch (error) {
-            console.log('📱 SettingsScreen: Biometric check error:', error);
+            Logger.debug('📱 SettingsScreen: Biometric check error:', error);
         }
     };
 

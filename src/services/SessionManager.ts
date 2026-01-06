@@ -4,6 +4,7 @@
 
 import { socketService } from './SocketService';
 import { webRTCService } from './WebRTCService';
+import { Logger } from '../utils/Logger';
 
 export interface SessionState {
     isActive: boolean;
@@ -83,7 +84,7 @@ class SessionManager {
     private setupSocketListeners() {
         // Listen for session created (as host)
         socketService.onSessionCreated((data) => {
-            console.log('📱 [SessionManager] Session created:', data.sessionId);
+            Logger.debug('📱 [SessionManager] Session created:', data.sessionId);
             this.updateState({
                 isActive: true,
                 role: 'host',
@@ -93,7 +94,7 @@ class SessionManager {
 
         // Listen for guest joining (as host)
         socketService.onGuestJoined((data) => {
-            console.log('📱 [SessionManager] Guest joined:', data.guestId);
+            Logger.debug('📱 [SessionManager] Guest joined:', data.guestId);
             this.updateState({
                 peerId: data.guestId,
             });
@@ -102,7 +103,7 @@ class SessionManager {
 
         // Listen for successful join (as guest)
         socketService.onSessionJoined((sessionId) => {
-            console.log('📱 [SessionManager] Joined session:', sessionId);
+            Logger.debug('📱 [SessionManager] Joined session:', sessionId);
             this.updateState({
                 isActive: true,
                 role: 'guest',
@@ -112,14 +113,14 @@ class SessionManager {
 
         // Listen for host disconnection (as guest)
         socketService.onHostDisconnected(() => {
-            console.log('📱 [SessionManager] Host disconnected');
+            Logger.debug('📱 [SessionManager] Host disconnected');
             this.emit('hostDisconnected');
             this.resetState();
         });
 
         // Listen for session ended
         socketService.onSessionEnded(() => {
-            console.log('📱 [SessionManager] Session ended');
+            Logger.debug('📱 [SessionManager] Session ended');
             this.emit('sessionEnded');
             this.resetState();
         });
@@ -134,7 +135,7 @@ class SessionManager {
     private updateState(partial: Partial<SessionState>) {
         const prevState = { ...this.state };
         this.state = { ...this.state, ...partial };
-        console.log('📱 [SessionManager] State updated:', this.state);
+        Logger.debug('📱 [SessionManager] State updated:', this.state);
         this.emit('stateChanged', this.state, prevState);
     }
 
@@ -177,7 +178,7 @@ class SessionManager {
 
     // Create a new session as host
     async createSession(): Promise<void> {
-        console.log('📱 [SessionManager] Creating session...');
+        Logger.debug('📱 [SessionManager] Creating session...');
 
         return new Promise(async (resolve, reject) => {
             const timeout = setTimeout(() => {
@@ -200,9 +201,9 @@ class SessionManager {
             try {
                 // Connect to signaling server if not connected
                 if (!socketService.isConnected()) {
-                    console.log('📱 [SessionManager] Connecting to signaling server...');
+                    Logger.debug('📱 [SessionManager] Connecting to signaling server...');
                     await socketService.connect();
-                    console.log('📱 [SessionManager] Connected! Creating session...');
+                    Logger.debug('📱 [SessionManager] Connected! Creating session...');
                 }
 
                 // Create session - the callback will update state
@@ -218,7 +219,7 @@ class SessionManager {
 
     // Join an existing session as guest
     async joinSession(sessionId: string): Promise<void> {
-        console.log('📱 [SessionManager] Joining session:', sessionId);
+        Logger.debug('📱 [SessionManager] Joining session:', sessionId);
 
         try {
             // Connect to signaling server if not connected
@@ -252,7 +253,7 @@ class SessionManager {
 
     // End the current session
     endSession() {
-        console.log('📱 [SessionManager] Ending session');
+        Logger.debug('📱 [SessionManager] Ending session');
 
         if (this.state.sessionId) {
             // Stop screen sharing if active

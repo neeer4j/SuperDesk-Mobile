@@ -1,5 +1,6 @@
 // Socket.io service for signaling server connection
 import { io, Socket } from 'socket.io-client';
+import { Logger } from '../utils/Logger';
 
 // WebRTC types for signaling
 interface RTCSessionDescriptionInit {
@@ -101,7 +102,7 @@ class SocketService {
             });
 
             this.socket.on('connect', () => {
-                console.log('📱 Connected to signaling server');
+                Logger.debug('📱 Connected to signaling server');
                 this.onConnectedCallback?.();
                 resolve();
             });
@@ -112,7 +113,7 @@ class SocketService {
             });
 
             this.socket.on('disconnect', () => {
-                console.log('📱 Disconnected from signaling server');
+                Logger.debug('📱 Disconnected from signaling server');
                 this.onDisconnectedCallback?.();
             });
 
@@ -125,14 +126,14 @@ class SocketService {
 
         // Session created (host receives session ID)
         this.socket.on('session-created', (data: SessionCreatedData) => {
-            console.log('📱 Session created:', data.sessionId);
+            Logger.debug('📱 Session created:', data.sessionId);
             this.currentSessionId = data.sessionId;
             this.onSessionCreatedCallback?.(data);
         });
 
         // Session joined (guest confirmation)
         this.socket.on('session-joined', (sessionId: string) => {
-            console.log('📱 Session joined:', sessionId);
+            Logger.debug('📱 Session joined:', sessionId);
             this.currentSessionId = sessionId;
             this.onSessionJoinedCallback?.(sessionId);
         });
@@ -145,68 +146,68 @@ class SocketService {
 
         // Guest joined (host receives when someone joins)
         this.socket.on('guest-joined', (data: GuestJoinedData) => {
-            console.log('📱 Guest joined:', data.guestId);
+            Logger.debug('📱 Guest joined:', data.guestId);
             this.onGuestJoinedCallback?.(data);
         });
 
         // WebRTC signaling events
         this.socket.on('offer', (data: OfferData) => {
-            console.log('📱 Received offer from:', data.from);
+            Logger.debug('📱 Received offer from:', data.from);
             this.onOfferCallback?.(data);
         });
 
         this.socket.on('answer', (data: AnswerData) => {
-            console.log('📱 Received answer from:', data.from);
+            Logger.debug('📱 Received answer from:', data.from);
             this.onAnswerCallback?.(data);
         });
 
         this.socket.on('ice-candidate', (data: IceCandidateData) => {
-            console.log('📱 Received ICE candidate from:', data.from);
+            Logger.debug('📱 Received ICE candidate from:', data.from);
             this.onIceCandidateCallback?.(data);
         });
 
         // Screen share events
         this.socket.on('screen-share-started', () => {
-            console.log('📱 Screen share started');
+            Logger.debug('📱 Screen share started');
             this.onScreenShareStartedCallback?.();
         });
 
         this.socket.on('host-stopped-sharing', () => {
-            console.log('📱 Host stopped sharing');
+            Logger.debug('📱 Host stopped sharing');
             this.onHostStoppedSharingCallback?.();
         });
 
         // Session lifecycle events
         this.socket.on('session-ended', () => {
-            console.log('📱 Session ended');
+            Logger.debug('📱 Session ended');
             this.currentSessionId = null;
             this.onSessionEndedCallback?.();
         });
 
         this.socket.on('host-disconnected', () => {
-            console.log('📱 Host disconnected');
+            Logger.debug('📱 Host disconnected');
             this.onHostDisconnectedCallback?.();
         });
 
         // Remote control events
         this.socket.on('remote-control-enabled', () => {
-            console.log('📱 Remote control enabled');
+            Logger.debug('📱 Remote control enabled');
             this.onRemoteControlEnabledCallback?.();
         });
 
         this.socket.on('remote-control-disabled', () => {
-            console.log('📱 Remote control disabled');
+            Logger.debug('📱 Remote control disabled');
             this.onRemoteControlDisabledCallback?.();
         });
 
         // Remote control input events (when we are host being controlled)
         this.socket.on('mouse-event', (data: MouseEventData) => {
-            console.log('📱 HOST received mouse event:', data.type, 'x:', data.x?.toFixed(2), 'y:', data.y?.toFixed(2));
+            Logger.debug('📱 HOST received mouse event:', data.type, 'x:', data.x?.toFixed(2), 'y:', data.y?.toFixed(2));
             this.onMouseEventCallback?.(data);
         });
 
         this.socket.on('keyboard-event', (data: KeyboardEventData) => {
-            console.log('📱 HOST received keyboard event:', data.type, data.key);
+            Logger.debug('📱 HOST received keyboard event:', data.type, data.key);
             this.onKeyboardEventCallback?.(data);
         });
     }
@@ -215,13 +216,13 @@ class SocketService {
 
     // Create a new session (as host)
     createSession(type: SessionType = 'mobile') {
-        console.log('📱 Creating session with type:', type);
+        Logger.debug('📱 Creating session with type:', type);
         this.socket?.emit('create-session', { type });
     }
 
     // Join an existing session (as guest)
     joinSession(sessionId: string) {
-        console.log('📱 Joining session:', sessionId);
+        Logger.debug('📱 Joining session:', sessionId);
         this.socket?.emit('join-session', sessionId);
     }
 
@@ -229,7 +230,7 @@ class SocketService {
     endSession(sessionId?: string) {
         const id = sessionId || this.currentSessionId;
         if (id) {
-            console.log('📱 Ending session:', id);
+            Logger.debug('📱 Ending session:', id);
             this.socket?.emit('end-session', id);
             this.currentSessionId = null;
         }
@@ -239,7 +240,7 @@ class SocketService {
     stopSharing(sessionId?: string) {
         const id = sessionId || this.currentSessionId;
         if (id) {
-            console.log('📱 Stopping share for session:', id);
+            Logger.debug('📱 Stopping share for session:', id);
             this.socket?.emit('stop-sharing', { sessionId: id });
         }
     }
@@ -247,12 +248,12 @@ class SocketService {
     // ===== WebRTC Signaling =====
 
     sendOffer(sessionId: string, offer: RTCSessionDescriptionInit) {
-        console.log('📱 Sending offer for session:', sessionId);
+        Logger.debug('📱 Sending offer for session:', sessionId);
         this.socket?.emit('offer', { sessionId, offer });
     }
 
     sendAnswer(sessionId: string, answer: RTCSessionDescriptionInit) {
-        console.log('📱 Sending answer for session:', sessionId);
+        Logger.debug('📱 Sending answer for session:', sessionId);
         this.socket?.emit('answer', { sessionId, answer });
     }
 

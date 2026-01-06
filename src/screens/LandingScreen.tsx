@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+import { Logger } from '../utils/Logger';
     View,
     Text,
     TouchableOpacity,
@@ -130,7 +131,7 @@ const LandingScreen = () => {
                 });
             }
         } catch (error) {
-            console.log('Auth check error:', error);
+            Logger.debug('Auth check error:', error);
             setUserState({
                 isLoggedIn: false,
                 profile: null,

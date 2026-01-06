@@ -1,4 +1,7 @@
 // Left Sliding Drawer - Complete Settings Panel with Gestures
+
+import { Logger } from '../utils/Logger';
+// Left Sliding Drawer - Complete Settings Panel with Gestures
 import React, { useRef, useEffect, useState } from 'react';
 import {
     View,
@@ -66,7 +69,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
         const loadBiometrics = async () => {
             try {
                 const type = await biometricService.checkAvailability();
-                console.log('📱 SideDrawer: Biometry type:', type);
+                Logger.debug('📱 SideDrawer: Biometry type:', type);
                 setBiometryType(type);
                 if (type) {
                     const enabled = await biometricService.isEnabled();
@@ -75,7 +78,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
                     setBiometricTimeout(timeout);
                 }
             } catch (error) {
-                console.log('📱 SideDrawer: Biometric error:', error);
+                Logger.debug('📱 SideDrawer: Biometric error:', error);
             }
         };
         loadBiometrics();
