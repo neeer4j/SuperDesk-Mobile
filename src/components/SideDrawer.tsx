@@ -44,12 +44,8 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
     const overlayOpacity = useRef(new Animated.Value(0)).current;
 
     const [userProfile, setUserProfile] = useState(initialProfile);
-    const [settings, setSettings] = useState({
-        notifications: true,
-        soundEffects: true,
-        startOnBoot: false,
-        shareAudio: true,
-    });
+    // Preference toggles for notifications/audio were removed because they were not wired
+    // into any behavior. Add back with real side effects before exposing in UI.
     const [videoQuality, setVideoQuality] = useState('Auto');
     const [showEditProfile, setShowEditProfile] = useState(false);
     const [editUsername, setEditUsername] = useState('');
@@ -159,10 +155,6 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
             },
         })
     ).current;
-
-    const handleToggle = (key: keyof typeof settings) => {
-        setSettings(prev => ({ ...prev, [key]: !prev[key] }));
-    };
 
     const handleLogout = () => {
         Alert.alert(
@@ -342,35 +334,6 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
                         )}
                     </View>
 
-                    {/* Preferences Section */}
-                    <Text style={[styles.sectionTitle, { color: colors.primary }]}>PREFERENCES</Text>
-                    <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-                        <SettingToggle
-                            icon="🔔"
-                            title="Notifications"
-                            subtitle="Get notified when someone joins"
-                            value={settings.notifications}
-                            onToggle={() => {
-                                hapticService.selection();
-                                handleToggle('notifications');
-                            }}
-                        />
-                        <SettingToggle
-                            icon="🔊"
-                            title="Sound Effects"
-                            subtitle="Play sounds for events"
-                            value={settings.soundEffects}
-                            onToggle={() => handleToggle('soundEffects')}
-                        />
-                        <SettingToggle
-                            icon="⏰"
-                            title="Start on System Boot"
-                            subtitle="Launch SuperDesk automatically"
-                            value={settings.startOnBoot}
-                            onToggle={() => handleToggle('startOnBoot')}
-                        />
-                    </View>
-
                     {/* Connection Section */}
                     <Text style={[styles.sectionTitle, { color: colors.primary }]}>CONNECTION</Text>
                     <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
@@ -379,13 +342,6 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
                             title="Video Quality"
                             subtitle="Adjust stream quality"
                             value={videoQuality}
-                        />
-                        <SettingToggle
-                            icon="🎵"
-                            title="Share Audio"
-                            subtitle="Share system audio in sessions"
-                            value={settings.shareAudio}
-                            onToggle={() => handleToggle('shareAudio')}
                         />
                     </View>
 

@@ -34,12 +34,8 @@ interface UserProfile {
 
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout }) => {
     const { theme, colors, toggleTheme } = useTheme();
-    const [settings, setSettings] = useState({
-        notifications: true,
-        soundEffects: true,
-        startOnBoot: false,
-        shareAudio: true,
-    });
+    // Preference toggles for notifications/audio were removed because they were not wired
+    // into any behavior. Add back with real side effects before exposing in UI.
     const [videoQuality, setVideoQuality] = useState('Auto');
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [showEditProfile, setShowEditProfile] = useState(false);
@@ -91,10 +87,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
         } catch (error) {
             // Ignore errors
         }
-    };
-
-    const handleToggle = (key: keyof typeof settings) => {
-        setSettings(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
     const handleLogout = () => {
@@ -269,31 +261,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
                     )}
                 </View>
 
-                <Text style={[styles.sectionTitle, { color: colors.primary }]}>PREFERENCES</Text>
-                <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-                    <SettingToggle
-                        icon="🔔"
-                        title="Notifications"
-                        subtitle="Get notified when someone joins"
-                        value={settings.notifications}
-                        onToggle={() => handleToggle('notifications')}
-                    />
-                    <SettingToggle
-                        icon="🔊"
-                        title="Sound Effects"
-                        subtitle="Play sounds for events"
-                        value={settings.soundEffects}
-                        onToggle={() => handleToggle('soundEffects')}
-                    />
-                    <SettingToggle
-                        icon="⏰"
-                        title="Start on System Boot"
-                        subtitle="Launch SuperDesk automatically"
-                        value={settings.startOnBoot}
-                        onToggle={() => handleToggle('startOnBoot')}
-                    />
-                </View>
-
                 <Text style={[styles.sectionTitle, { color: colors.primary }]}>CONNECTION</Text>
                 <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
                     <SettingDropdown
@@ -301,13 +268,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
                         title="Video Quality"
                         subtitle="Adjust stream quality"
                         value={videoQuality}
-                    />
-                    <SettingToggle
-                        icon="🎵"
-                        title="Share Audio"
-                        subtitle="Share system audio in sessions"
-                        value={settings.shareAudio}
-                        onToggle={() => handleToggle('shareAudio')}
                     />
                 </View>
 
