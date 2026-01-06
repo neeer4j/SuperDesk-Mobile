@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, memo } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { layout } from '../../theme/designSystem';
 
@@ -11,7 +11,7 @@ interface StackProps {
     style?: ViewStyle;
 }
 
-export const Stack: React.FC<StackProps> = ({
+const StackComponent: React.FC<StackProps> = ({
     children,
     direction = 'vertical',
     spacing = 'md',
@@ -19,32 +19,33 @@ export const Stack: React.FC<StackProps> = ({
     justify = 'flex-start',
     style,
 }) => {
-    return (
-        <View
-            style={[
-                styles.stack,
-                {
-                    flexDirection: direction === 'horizontal' ? 'row' : 'column',
-                    alignItems: align,
-                    justifyContent: justify,
-                    gap: layout.spacing[spacing],
-                },
-                style,
-            ]}
-        >
-            {children}
-        </View>
+    const stackStyle = useMemo(
+        () => [
+            styles.stack,
+            {
+                flexDirection: direction === 'horizontal' ? 'row' : 'column',
+                alignItems: align,
+                justifyContent: justify,
+                gap: layout.spacing[spacing],
+            } as ViewStyle,
+            style,
+        ],
+        [direction, spacing, align, justify, style]
     );
+
+    return <View style={stackStyle}>{children}</View>;
 };
 
-// Convenience components
-export const VStack: React.FC<Omit<StackProps, 'direction'>> = (props) => (
-    <Stack {...props} direction="vertical" />
-);
+export const Stack = memo(StackComponent);
 
-export const HStack: React.FC<Omit<StackProps, 'direction'>> = (props) => (
+// Convenience components
+export const VStack: React.FC<Omit<StackProps, 'direction'>> = memo((props) => (
+    <Stack {...props} direction="vertical" />
+));
+
+export const HStack: React.FC<Omit<StackProps, 'direction'>> = memo((props) => (
     <Stack {...props} direction="horizontal" />
-);
+));
 
 const styles = StyleSheet.create({
     stack: {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, memo } from 'react';
 import { View, StyleSheet, StatusBar, SafeAreaView, ViewStyle, ScrollView } from 'react-native';
 import { layout } from '../../theme/designSystem';
 import { useTheme } from '../../context/ThemeContext';
@@ -10,7 +10,7 @@ interface ScreenContainerProps {
     fullWidth?: boolean; // If false, adds standard padding
 }
 
-export const ScreenContainer: React.FC<ScreenContainerProps> = ({
+const ScreenContainerComponent: React.FC<ScreenContainerProps> = ({
     children,
     style,
     withScroll = false,
@@ -18,16 +18,25 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
 }) => {
     const { theme, colors } = useTheme();
 
-    const contentStyle = [
-        styles.container,
-        !fullWidth && { padding: layout.spacing.md },
-        style,
-    ];
+    const contentStyle = useMemo(
+        () => [styles.container, !fullWidth && { padding: layout.spacing.md }, style],
+        [fullWidth, style]
+    );
+
+    const scrollContentStyle = useMemo(
+        () => (!fullWidth ? { padding: layout.spacing.md } : undefined),
+        [fullWidth]
+    );
+
+    const safeAreaStyle = useMemo(
+        () => [styles.safeArea, { backgroundColor: colors.background }],
+        [colors.background]
+    );
 
     const Content = withScroll ? (
         <ScrollView
             style={styles.container}
-            contentContainerStyle={!fullWidth ? { padding: layout.spacing.md } : undefined}
+            contentContainerStyle={scrollContentStyle}
             showsVerticalScrollIndicator={false}
         >
             {children}
@@ -37,7 +46,7 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
     );
 
     return (
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <SafeAreaView style={safeAreaStyle}>
             <StatusBar
                 barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
                 backgroundColor={colors.background}
@@ -46,6 +55,8 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
         </SafeAreaView>
     );
 };
+
+export const ScreenContainer = memo(ScreenContainerComponent);
 
 const styles = StyleSheet.create({
     safeArea: {

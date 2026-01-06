@@ -7,6 +7,7 @@ import { config } from '@gluestack-ui/config';
 import Navigation from './src/navigation/Navigation';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { Logger } from './src/utils/Logger';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 // Ignore specific warnings
 LogBox.ignoreLogs([
@@ -25,7 +26,9 @@ const AppContent: React.FC = () => {
           backgroundColor={colors.background}
           translucent={false}
         />
-        <Navigation />
+        <ErrorBoundary>
+          <Navigation />
+        </ErrorBoundary>
       </GestureHandlerRootView>
     </GluestackUIProvider>
   );
@@ -38,9 +41,11 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <ThemeProvider>
-      <AppContent />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 };
 

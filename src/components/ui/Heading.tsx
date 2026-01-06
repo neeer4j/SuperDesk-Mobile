@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, memo } from 'react';
 import { Text, StyleSheet, TextProps, TextStyle } from 'react-native';
 import { typography } from '../../theme/designSystem';
 import { useTheme } from '../../context/ThemeContext';
@@ -10,7 +10,7 @@ interface HeadingProps extends TextProps {
     children: React.ReactNode;
 }
 
-export const Heading: React.FC<HeadingProps> = ({
+const HeadingComponent: React.FC<HeadingProps> = ({
     size = 'xl',
     weight = 'bold',
     color,
@@ -20,7 +20,7 @@ export const Heading: React.FC<HeadingProps> = ({
 }) => {
     const { colors } = useTheme();
 
-    const getFontSize = () => {
+    const fontSize = useMemo(() => {
         switch (size) {
             case 'sm':
                 return typography.size.lg;
@@ -39,9 +39,9 @@ export const Heading: React.FC<HeadingProps> = ({
             default:
                 return typography.size.xxl;
         }
-    };
+    }, [size]);
 
-    const getFontWeight = (): TextStyle['fontWeight'] => {
+    const fontWeight = useMemo((): TextStyle['fontWeight'] => {
         switch (weight) {
             case 'normal':
                 return '400';
@@ -56,25 +56,29 @@ export const Heading: React.FC<HeadingProps> = ({
             default:
                 return '700';
         }
-    };
+    }, [weight]);
+
+    const headingStyle = useMemo(
+        () => [
+            styles.heading,
+            {
+                fontSize,
+                fontWeight,
+                color: color || colors.text,
+            },
+            style,
+        ],
+        [fontSize, fontWeight, color, colors.text, style]
+    );
 
     return (
-        <Text
-            style={[
-                styles.heading,
-                {
-                    fontSize: getFontSize(),
-                    fontWeight: getFontWeight(),
-                    color: color || colors.text,
-                },
-                style,
-            ]}
-            {...props}
-        >
+        <Text style={headingStyle} {...props}>
             {children}
         </Text>
     );
 };
+
+export const Heading = memo(HeadingComponent);
 
 const styles = StyleSheet.create({
     heading: {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { View, StyleSheet, ViewStyle, TouchableOpacity, StyleProp } from 'react-native';
 import { layout, shadows } from '../../theme/designSystem';
 import { useTheme } from '../../context/ThemeContext';
@@ -11,7 +11,7 @@ interface CardProps {
     padding?: keyof typeof layout.spacing;
 }
 
-export const Card: React.FC<CardProps> = ({
+const CardComponent: React.FC<CardProps> = ({
     children,
     style,
     variant = 'default',
@@ -20,38 +20,41 @@ export const Card: React.FC<CardProps> = ({
 }) => {
     const { colors } = useTheme();
 
-    const getCardStyles = () => {
+    const cardStyles = useMemo(() => {
         const baseStyle = {
             padding: layout.spacing[padding],
-            borderRadius: layout.borderRadius.lg, // Updated to lg for more rounded appearance
+            borderRadius: layout.borderRadius.lg,
         };
 
+        let variantStyle;
         switch (variant) {
             case 'outlined':
-                return {
+                variantStyle = {
                     ...baseStyle,
                     backgroundColor: 'transparent',
                     borderWidth: 1,
                     borderColor: colors.border,
                 };
+                break;
             case 'elevated':
-                return {
+                variantStyle = {
                     ...baseStyle,
                     backgroundColor: colors.card,
                     borderWidth: 0,
                     ...shadows.md,
                 };
+                break;
             default:
-                return {
+                variantStyle = {
                     ...baseStyle,
                     backgroundColor: colors.card,
                     borderWidth: 1,
                     borderColor: colors.border,
                 };
         }
-    };
 
-    const cardStyles = [getCardStyles(), style];
+        return [variantStyle, style];
+    }, [variant, padding, colors, style]);
 
     if (onPress) {
         return (
@@ -63,5 +66,8 @@ export const Card: React.FC<CardProps> = ({
 
     return <View style={cardStyles}>{children}</View>;
 };
+
+// Memoize the component to prevent unnecessary re-renders
+export const Card = memo(CardComponent);
 
 const styles = StyleSheet.create({});

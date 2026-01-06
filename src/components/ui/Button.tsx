@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import {
     TouchableOpacity,
     Text,
@@ -22,7 +22,7 @@ interface ButtonProps {
     icon?: React.ReactNode;
 }
 
-export const Button: React.FC<ButtonProps> = ({
+const ButtonComponent: React.FC<ButtonProps> = ({
     title,
     onPress,
     variant = 'primary',
@@ -35,7 +35,7 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
     const { colors } = useTheme();
 
-    const getBackgroundColor = () => {
+    const backgroundColor = useMemo(() => {
         if (disabled) return colors.border;
         switch (variant) {
             case 'primary':
@@ -49,9 +49,9 @@ export const Button: React.FC<ButtonProps> = ({
             default:
                 return colors.primary;
         }
-    };
+    }, [disabled, variant, colors]);
 
-    const getTextColor = () => {
+    const textColor = useMemo(() => {
         if (disabled) return colors.subText;
         switch (variant) {
             case 'primary':
@@ -64,9 +64,9 @@ export const Button: React.FC<ButtonProps> = ({
             default:
                 return '#ffffff';
         }
-    };
+    }, [disabled, variant, colors]);
 
-    const getHeight = () => {
+    const height = useMemo(() => {
         switch (size) {
             case 'sm':
                 return 36;
@@ -75,9 +75,9 @@ export const Button: React.FC<ButtonProps> = ({
             default:
                 return 48;
         }
-    };
+    }, [size]);
 
-    const getFontSize = () => {
+    const fontSize = useMemo(() => {
         switch (size) {
             case 'sm':
                 return typography.size.sm;
@@ -86,54 +86,62 @@ export const Button: React.FC<ButtonProps> = ({
             default:
                 return typography.size.md;
         }
-    };
+    }, [size]);
+
+    const buttonStyle = useMemo(
+        () => [
+            styles.button,
+            {
+                backgroundColor,
+                height,
+                paddingHorizontal: size === 'sm' ? layout.spacing.md : layout.spacing.lg,
+            },
+            variant === 'ghost' && { borderWidth: 0 },
+            style,
+        ],
+        [backgroundColor, height, size, variant, style],
+    );
+
+    const labelStyle = useMemo(
+        () => [
+            styles.text,
+            {
+                color: textColor,
+                fontSize,
+                marginLeft: icon ? layout.spacing.sm : 0,
+            },
+            textStyle,
+        ],
+        [textColor, fontSize, icon, textStyle],
+    );
 
     return (
         <TouchableOpacity
-            style={[
-                styles.button,
-                {
-                    backgroundColor: getBackgroundColor(),
-                    height: getHeight(),
-                    paddingHorizontal: size === 'sm' ? layout.spacing.md : layout.spacing.lg,
-                },
-                variant === 'ghost' && { borderWidth: 0 },
-                style,
-            ]}
+            style={buttonStyle}
             onPress={onPress}
             activeOpacity={0.7}
-            disabled={disabled || loading}
-        >
+            disabled={disabled || loading}>
             {loading ? (
-                <ActivityIndicator color={getTextColor()} />
+                <ActivityIndicator color={textColor} />
             ) : (
                 <>
                     {icon && <>{icon}</>}
-                    <Text
-                        style={[
-                            styles.text,
-                            {
-                                color: getTextColor(),
-                                fontSize: getFontSize(),
-                                marginLeft: icon ? layout.spacing.sm : 0,
-                            },
-                            textStyle,
-                        ]}
-                    >
-                        {title}
-                    </Text>
+                    <Text style={labelStyle}>{title}</Text>
                 </>
             )}
         </TouchableOpacity>
     );
 };
 
+// Memoize the component to prevent unnecessary re-renders
+export const Button = memo(ButtonComponent);
+
 const styles = StyleSheet.create({
     button: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: layout.borderRadius.lg, // Updated to lg for more rounded appearance
+        borderRadius: layout.borderRadius.lg,
     },
     text: {
         fontFamily: typography.fontFamily.medium,

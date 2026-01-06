@@ -1,5 +1,13 @@
-import React from 'react';
-import { TextInput, View, Text, StyleSheet, TextInputProps, ViewStyle, TextStyle } from 'react-native';
+import React, { memo, useMemo } from 'react';
+import {
+    TextInput,
+    View,
+    Text,
+    StyleSheet,
+    TextInputProps,
+    ViewStyle,
+    TextStyle,
+} from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { layout, typography } from '../../theme/designSystem';
 
@@ -11,7 +19,7 @@ interface InputProps extends TextInputProps {
     size?: 'md' | 'lg' | 'xl';
 }
 
-export const Input: React.FC<InputProps> = ({
+const InputComponent: React.FC<InputProps> = ({
     label,
     error,
     containerStyle,
@@ -21,7 +29,7 @@ export const Input: React.FC<InputProps> = ({
 }) => {
     const { colors } = useTheme();
 
-    const getHeight = () => {
+    const height = useMemo(() => {
         switch (size) {
             case 'lg':
                 return 52;
@@ -30,9 +38,9 @@ export const Input: React.FC<InputProps> = ({
             default:
                 return 44;
         }
-    };
+    }, [size]);
 
-    const getFontSize = () => {
+    const fontSize = useMemo(() => {
         switch (size) {
             case 'lg':
                 return typography.size.lg;
@@ -41,25 +49,28 @@ export const Input: React.FC<InputProps> = ({
             default:
                 return typography.size.md;
         }
-    };
+    }, [size]);
+
+    const inputStyles = useMemo(
+        () => [
+            styles.input,
+            {
+                backgroundColor: colors.card,
+                borderColor: error ? colors.error : colors.border,
+                color: colors.text,
+                height,
+                fontSize,
+            },
+            inputStyle,
+        ],
+        [colors, error, height, fontSize, inputStyle],
+    );
 
     return (
         <View style={[styles.container, containerStyle]}>
-            {label && (
-                <Text style={[styles.label, { color: colors.subText }]}>{label}</Text>
-            )}
+            {label && <Text style={[styles.label, { color: colors.subText }]}>{label}</Text>}
             <TextInput
-                style={[
-                    styles.input,
-                    {
-                        backgroundColor: colors.card,
-                        borderColor: error ? colors.error : colors.border,
-                        color: colors.text,
-                        height: getHeight(),
-                        fontSize: getFontSize(),
-                    },
-                    inputStyle,
-                ]}
+                style={inputStyles}
                 placeholderTextColor={colors.subText}
                 {...textInputProps}
             />
@@ -67,6 +78,9 @@ export const Input: React.FC<InputProps> = ({
         </View>
     );
 };
+
+// Memoize the component to prevent unnecessary re-renders
+export const Input = memo(InputComponent);
 
 const styles = StyleSheet.create({
     container: {
@@ -81,7 +95,7 @@ const styles = StyleSheet.create({
     },
     input: {
         borderWidth: 1,
-        borderRadius: layout.borderRadius.lg, // Updated to lg for more rounded appearance
+        borderRadius: layout.borderRadius.lg,
         paddingHorizontal: layout.spacing.md,
         fontFamily: typography.fontFamily.regular,
     },
