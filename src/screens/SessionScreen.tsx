@@ -31,6 +31,15 @@ interface SessionScreenProps {
 
 type SessionStatus = 'initializing' | 'connecting' | 'connected' | 'streaming' | 'error';
 
+const connectionMeta = {
+    new: { label: 'Connecting', color: '#f59e0b' },
+    connecting: { label: 'Connecting', color: '#f59e0b' },
+    connected: { label: 'Connected', color: '#22c55e' },
+    streaming: { label: 'Streaming', color: '#22c55e' },
+    disconnected: { label: 'Disconnected', color: '#ef4444' },
+    failed: { label: 'Failed', color: '#ef4444' },
+} as const;
+
 const DRAG_THRESHOLD = 0.02;
 
 const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
@@ -427,7 +436,17 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
                         </View>
                         <View>
                             <Text style={[styles.label, { color: colors.textTertiary }]}>CONNECTION</Text>
-                            <Text style={[styles.value, { color: colors.textPrimary }]}>{connectionState}</Text>
+                            <View style={styles.chipRow}>
+                                <View
+                                    style={[
+                                        styles.statusDot,
+                                        { backgroundColor: connectionMeta[connectionState as keyof typeof connectionMeta]?.color || colors.primary }
+                                    ]}
+                                />
+                                <Text style={[styles.chipText, { color: colors.textPrimary }]}>
+                                    {connectionMeta[connectionState as keyof typeof connectionMeta]?.label || connectionState}
+                                </Text>
+                            </View>
                         </View>
                     </View>
                 </Card>
@@ -513,6 +532,15 @@ const styles = StyleSheet.create({
     statusText: {
         fontSize: typography.size.md,
         fontWeight: '500',
+    },
+    chipRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 4,
+    },
+    chipText: {
+        fontSize: typography.size.sm,
+        fontWeight: '600',
     },
     streamingContainer: {
         alignItems: 'center',
