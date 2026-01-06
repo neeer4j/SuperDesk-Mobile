@@ -3,7 +3,7 @@
 import { Logger } from '../utils/Logger';
 // File Transfer Screen - Send and receive files via WebRTC
 // Redesigned with new Design System
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -35,6 +35,8 @@ const FileTransferScreen: React.FC<FileTransferScreenProps> = ({ navigation }) =
     const [isChannelReady, setIsChannelReady] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [showIncomingModal, setShowIncomingModal] = useState(false);
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Session info from SessionManager
     const [sessionState, setSessionState] = useState<SessionState>({
@@ -50,6 +52,8 @@ const FileTransferScreen: React.FC<FileTransferScreenProps> = ({ navigation }) =
     const [incomingCount, setIncomingCount] = useState(0);
 
     useEffect(() => {
+        requestNotificationPermission();
+
         // Initialize state from SessionManager
         const state = sessionManager.getState();
         setSessionState(state);
@@ -92,12 +96,12 @@ const FileTransferScreen: React.FC<FileTransferScreenProps> = ({ navigation }) =
 
         // Listen for received files
         fileTransferService.onFileReceived((filePath, fileName) => {
-            Alert.alert('File Received', `${fileName} saved to Downloads`);
+            showToast(`Received: ${fileName}`, 'success');
         });
 
         // Listen for errors
-        fileTransferService.onError((error, transferId) => {
-            Alert.alert('Transfer Error', error);
+        fileTransferService.onError((error) => {
+            showToast(error, 'error');
         });
 
         // Periodic check for data channel readiness
@@ -139,6 +143,29 @@ const FileTransferScreen: React.FC<FileTransferScreenProps> = ({ navigation }) =
             console.error('Permission error:', err);
             return false;
         }
+    };
+
+    const requestNotificationPermission = async () => {
+        if (Platform.OS !== 'android') return;
+        if (!PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS) return;
+        try {
+            await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS, {
+                title: 'Notification Permission',
+                message: 'Allow SuperDesk to show file transfer notifications.',
+                buttonPositive: 'Allow',
+                buttonNegative: 'Deny',
+            });
+        } catch (err) {
+            Logger.debug('Notification permission request failed', err);
+        }
+    };
+
+    const showToast = (message: string, type: 'success' | 'error') => {
+        if (toastTimeoutRef.current) {
+            clearTimeout(toastTimeoutRef.current);
+        }
+        setToast({ message, type });
+        toastTimeoutRef.current = setTimeout(() => setToast(null), 2600);
     };
 
     const handleSendFile = async () => {
@@ -326,6 +353,19 @@ const FileTransferScreen: React.FC<FileTransferScreenProps> = ({ navigation }) =
 
     return (
         <ScreenContainer>
+            {toast && (
+                <View
+                    style={[
+                        styles.toast,
+                        {
+                            backgroundColor: toast.type === 'success' ? colors.success + 'E6' : colors.error + 'E6',
+                            borderColor: toast.type === 'success' ? colors.success : colors.error,
+                        }
+                    ]}
+                >
+                    <Text style={[styles.toastText, { color: colors.background }]}>{toast.message}</Text>
+                </View>
+            )}
 
 
             {/* Session Info Bar - Compact */}
@@ -496,6 +536,23 @@ const FileTransferScreen: React.FC<FileTransferScreenProps> = ({ navigation }) =
 };
 
 const styles = StyleSheet.create({
+    toast: {
+        position: 'absolute',
+        top: 12,
+        left: layout.spacing.md,
+        right: layout.spacing.md,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderRadius: 10,
+        borderWidth: 1,
+        zIndex: 10,
+        elevation: 3,
+    },
+    toastText: {
+        fontSize: typography.size.sm,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
 
     sessionBar: {
         flexDirection: 'row',
