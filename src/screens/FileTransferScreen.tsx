@@ -544,7 +544,6 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         paddingHorizontal: 14,
         borderRadius: 10,
-        borderWidth: 1,
         zIndex: 10,
         elevation: 3,
     },
@@ -753,7 +752,6 @@ const styles = StyleSheet.create({
         borderRadius: layout.borderRadius.lg,
         padding: 20,
         maxHeight: '80%',
-        borderWidth: 1,
     },
     modalHeader: {
         flexDirection: 'row',

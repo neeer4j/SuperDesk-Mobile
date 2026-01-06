@@ -408,7 +408,6 @@ const styles = StyleSheet.create({
 
     // Active session styles
     activeCard: {
-        borderWidth: 1,
         marginBottom: layout.spacing.lg,
     },
     statusHeader: {

@@ -132,8 +132,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                         : {
                             backgroundColor: colors.surface,
                             borderBottomLeftRadius: 4,
-                            borderWidth: 1,
-                            borderColor: colors.border
                         }
                 ]}>
                     <Text style={[
@@ -160,14 +158,18 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
     return (
         <ScreenContainer style={styles.container} withScroll={false}>
             {/* Header */}
-            <View style={[styles.header, { borderBottomColor: colors.border }]}>
+            <View style={[styles.header, { backgroundColor: colors.surfaceGlass, borderColor: colors.glassBorder }]}>
                 <TouchableOpacity
                     style={styles.backButton}
                     onPress={() => navigation.goBack()}
+                    activeOpacity={0.7}
                 >
                     <BackIcon size={24} color={colors.textPrimary} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>@{username}</Text>
+                <View style={styles.headerCenter}>
+                    <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>@{username}</Text>
+                    <View style={[styles.onlineIndicator, { backgroundColor: colors.success }]} />
+                </View>
                 <View style={styles.headerRight} />
             </View>
 
@@ -194,14 +196,15 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation, route }) => {
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
                 <View style={[styles.inputContainer, {
-                    borderTopColor: colors.border,
-                    backgroundColor: colors.background
+                    borderTopColor: colors.glassBorder,
+                    backgroundColor: colors.surfaceGlass
                 }]}>
                     <TextInput
                         style={[styles.input, {
-                            backgroundColor: colors.surface,
+                            backgroundColor: colors.glass,
                             color: colors.textPrimary,
-                            borderColor: colors.border
+                            borderColor: colors.glassBorder,
+                            borderWidth: 1,
                         }]}
                         placeholder="Type a message..."
                         placeholderTextColor={colors.textTertiary}
@@ -244,14 +247,27 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingVertical: layout.spacing.md,
-        borderBottomWidth: 1,
+        paddingHorizontal: layout.spacing.sm,
+        borderRadius: layout.borderRadius.lg,
+        marginBottom: layout.spacing.xs,
     },
     backButton: {
-        padding: 4,
+        padding: 8,
+        borderRadius: layout.borderRadius.md,
+    },
+    headerCenter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     headerTitle: {
         fontSize: typography.size.lg,
         fontFamily: typography.fontFamily.semiBold,
+    },
+    onlineIndicator: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
     },
     headerRight: {
         width: 32,
@@ -281,7 +297,6 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        borderWidth: 1,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 8,
@@ -307,26 +322,27 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         padding: layout.spacing.md,
-        borderTopWidth: 1,
+        alignItems: 'flex-end',
+        gap: 8,
     },
     input: {
         flex: 1,
         borderRadius: 24,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
+        paddingHorizontal: 18,
+        paddingVertical: 12,
         fontSize: 15,
         maxHeight: 100,
-        borderWidth: 1,
         fontFamily: typography.fontFamily.regular,
+        minHeight: 44,
     },
     sendButton: {
         borderRadius: 24,
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        marginLeft: 8,
+        paddingHorizontal: 24,
+        paddingVertical: 12,
         justifyContent: 'center',
         alignItems: 'center',
-        minWidth: 70,
+        minWidth: 80,
+        height: 44,
     },
     sendButtonText: {
         color: '#FFFFFF',

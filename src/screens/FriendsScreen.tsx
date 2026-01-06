@@ -16,7 +16,7 @@ import {
 import { BackIcon } from '../components/Icons'; // Assuming generic icons, or use specifics if available
 import { friendsService, Friend } from '../services/supabaseClient';
 import { useTheme } from '../context/ThemeContext';
-import { ScreenContainer, Card, Button } from '../components/ui';
+import { ScreenContainer, Card, Button, SkeletonListItem } from '../components/ui';
 import { typography, layout } from '../theme/designSystem';
 
 import { Mail } from 'lucide-react-native';
@@ -190,25 +190,28 @@ const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
     if (isLoading) {
         return (
             <ScreenContainer style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
+                <SkeletonListItem />
+                <SkeletonListItem />
+                <SkeletonListItem />
+                <SkeletonListItem />
+                <SkeletonListItem />
             </ScreenContainer>
         );
     }
 
     return (
         <ScreenContainer>
-
-
             {/* Header with Mail Button */}
             <View style={styles.header}>
-                <Text style={[styles.sectionTitle, { fontSize: typography.size.lg, marginBottom: 0 }]}>Friends</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>Friends</Text>
                 <TouchableOpacity
                     onPress={() => setShowPending(!showPending)}
-                    style={styles.mailButton}
+                    style={[styles.mailButton, { backgroundColor: pendingRequests.length > 0 ? colors.primary + '15' : colors.surface }]}
+                    activeOpacity={0.7}
                 >
-                    <Mail color={colors.text} size={24} />
+                    <Mail color={pendingRequests.length > 0 ? colors.primary : colors.textSecondary} size={22} />
                     {pendingRequests.length > 0 && (
-                        <View style={styles.badge}>
+                        <View style={[styles.badge, { backgroundColor: colors.primary }]}>
                             <Text style={styles.badgeText}>{pendingRequests.length}</Text>
                         </View>
                     )}
@@ -237,7 +240,7 @@ const FriendsScreen: React.FC<FriendsScreenProps> = ({ navigation }) => {
             {/* Add Friend Input */}
             <View style={styles.addFriendContainer}>
                 <TextInput
-                    style={[styles.searchInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                    style={[styles.searchInput, { backgroundColor: colors.surfaceGlass, borderColor: colors.glassBorder, borderWidth: 1, color: colors.text }]}
                     placeholder="Enter username to add friend"
                     placeholderTextColor={colors.subText}
                     value={searchQuery}
@@ -292,22 +295,28 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        marginBottom: layout.spacing.md,
+    },
+    headerTitle: {
+        fontSize: typography.size.xl,
+        fontFamily: typography.fontFamily.bold,
     },
     mailButton: {
         position: 'relative',
-        padding: 8,
+        padding: 10,
+        borderRadius: layout.borderRadius.lg,
     },
     badge: {
         position: 'absolute',
-        top: 0,
-        right: 0,
-        backgroundColor: '#FF3B30', // Ribbon/Alert color
+        top: 4,
+        right: 4,
         borderRadius: 10,
-        width: 18,
+        minWidth: 18,
         height: 18,
+        paddingHorizontal: 5,
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 1,
+        borderWidth: 2,
         borderColor: 'white',
     },
     badgeText: {
@@ -330,7 +339,6 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.size.md,
-        borderWidth: 1,
         marginRight: 10,
     },
     addButton: {
@@ -358,7 +366,7 @@ const styles = StyleSheet.create({
         marginBottom: layout.spacing.sm,
     },
     pendingItem: {
-        borderWidth: 1,
+        // No border, uses card background distinction
     },
     friendInfo: {
         flexDirection: 'row',
@@ -379,7 +387,6 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 1,
     },
     avatarText: {
         fontSize: 16,

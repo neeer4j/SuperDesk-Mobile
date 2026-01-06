@@ -18,7 +18,7 @@ import {
     Modal,
     PanResponder,
 } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme, accentColors, AccentColorKey } from '../context/ThemeContext';
 import { authService } from '../services/supabaseClient';
 import { biometricService, BiometryType } from '../services/BiometricService';
 import { hapticService } from '../services/HapticService';
@@ -39,7 +39,7 @@ interface SideDrawerProps {
 }
 
 const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, navigation, userProfile: initialProfile }) => {
-    const { theme, colors, toggleTheme } = useTheme();
+    const { theme, colors, toggleTheme, accentColor, setAccentColor } = useTheme();
     const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
     const overlayOpacity = useRef(new Animated.Value(0)).current;
 
@@ -93,14 +93,19 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
 
     useEffect(() => {
         Animated.parallel([
-            Animated.timing(slideAnim, {
+            Animated.spring(slideAnim, {
                 toValue: isOpen ? 0 : -DRAWER_WIDTH,
-                duration: 250,
                 useNativeDriver: true,
+                damping: 25,
+                stiffness: 180,
+                mass: 1,
+                overshootClamping: false,
+                restDisplacementThreshold: 0.01,
+                restSpeedThreshold: 0.01,
             }),
             Animated.timing(overlayOpacity, {
                 toValue: isOpen ? 1 : 0,
-                duration: 250,
+                duration: 300,
                 useNativeDriver: true,
             }),
         ]).start();
@@ -140,14 +145,18 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
                 } else if (isOpen && gestureState.dx < -SWIPE_THRESHOLD) {
                     onClose();
                 } else {
-                    // Snap back to current state
+                    // Snap back to current state with smooth spring
                     Animated.parallel([
                         Animated.spring(slideAnim, {
                             toValue: isOpen ? 0 : -DRAWER_WIDTH,
                             useNativeDriver: true,
+                            damping: 25,
+                            stiffness: 180,
+                            mass: 1,
                         }),
-                        Animated.spring(overlayOpacity, {
+                        Animated.timing(overlayOpacity, {
                             toValue: isOpen ? 1 : 0,
+                            duration: 300,
                             useNativeDriver: true,
                         }),
                     ]).start();
@@ -272,7 +281,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
                     <TouchableOpacity
                         style={[styles.accountCard, {
                             backgroundColor: colors.card,
-                            borderColor: colors.cardBorder
+                            borderColor: colors.cardBorder,
                         }]}
                         onPress={() => setShowEditProfile(true)}
                     >
@@ -308,6 +317,40 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
                                 toggleTheme();
                             }}
                         />
+                    </View>
+
+                    {/* Theme Colors Section */}
+                    <Text style={[styles.sectionTitle, { color: colors.primary }]}>THEME COLOR</Text>
+                    <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+                        <View style={styles.colorPickerContainer}>
+                            {(Object.keys(accentColors) as AccentColorKey[]).map((key) => {
+                                const color = accentColors[key];
+                                const isSelected = accentColor === key;
+                                return (
+                                    <TouchableOpacity
+                                        key={key}
+                                        style={[
+                                            styles.colorOption,
+                                            { backgroundColor: color.primary },
+                                            isSelected && styles.colorOptionSelected,
+                                            isSelected && { borderColor: colors.text },
+                                        ]}
+                                        onPress={() => {
+                                            hapticService.selection();
+                                            setAccentColor(key);
+                                        }}
+                                        activeOpacity={0.7}
+                                    >
+                                        {isSelected && (
+                                            <Text style={styles.colorCheckmark}>✓</Text>
+                                        )}
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                        <Text style={[styles.colorPickerLabel, { color: colors.subText }]}>
+                            {accentColors[accentColor].name}
+                        </Text>
                     </View>
 
                     {/* Security Section */}
@@ -359,7 +402,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
                     {/* Footer */}
                     <View style={styles.footer}>
                         <Text style={[styles.footerText, { color: colors.subText }]}>
-                            SuperDesk Mobile v1.0.0
+                            SuperDesk Mobile v1.3.0
                         </Text>
                     </View>
                 </ScrollView>
@@ -468,7 +511,6 @@ const styles = StyleSheet.create({
         padding: 16,
         flexDirection: 'row',
         alignItems: 'center',
-        borderWidth: 1,
         marginHorizontal: 16,
         marginBottom: 8,
     },
@@ -508,7 +550,6 @@ const styles = StyleSheet.create({
     section: {
         borderRadius: 20,
         overflow: 'hidden',
-        borderWidth: 1,
         marginHorizontal: 16,
         marginBottom: 8,
     },
@@ -516,7 +557,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         padding: 16,
-        borderBottomWidth: 1,
     },
     settingIcon: {
         width: 40,
@@ -540,6 +580,36 @@ const styles = StyleSheet.create({
     settingSubtitle: {
         fontSize: 12,
     },
+    colorPickerContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingTop: 16,
+        paddingBottom: 8,
+    },
+    colorOption: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 3,
+        borderColor: 'transparent',
+    },
+    colorOptionSelected: {
+        borderWidth: 3,
+    },
+    colorCheckmark: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    colorPickerLabel: {
+        textAlign: 'center',
+        fontSize: 12,
+        paddingBottom: 12,
+        marginTop: 4,
+    },
     dropdown: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -561,7 +631,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: 24,
         marginHorizontal: 16,
-        borderWidth: 1,
     },
     logoutText: {
         fontSize: 16,
@@ -583,7 +652,6 @@ const styles = StyleSheet.create({
     modalContent: {
         borderRadius: 24,
         padding: 24,
-        borderWidth: 1,
     },
     modalHeader: {
         flexDirection: 'row',

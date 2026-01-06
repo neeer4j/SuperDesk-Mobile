@@ -55,8 +55,9 @@ const InputComponent: React.FC<InputProps> = ({
         () => [
             styles.input,
             {
-                backgroundColor: colors.card,
-                borderColor: error ? colors.error : colors.border,
+                backgroundColor: colors.surfaceGlass,
+                borderColor: error ? colors.error : colors.glassBorder,
+                borderWidth: 1,
                 color: colors.text,
                 height,
                 fontSize,
@@ -94,7 +95,6 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     input: {
-        borderWidth: 1,
         borderRadius: layout.borderRadius.lg,
         paddingHorizontal: layout.spacing.md,
         fontFamily: typography.fontFamily.regular,

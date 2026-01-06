@@ -301,7 +301,6 @@ const styles = StyleSheet.create({
         marginBottom: layout.spacing.sm,
     },
     input: {
-        borderWidth: 1,
         borderRadius: layout.borderRadius.md,
         padding: layout.spacing.md,
         fontFamily: typography.fontFamily.bold,
@@ -344,7 +343,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: layout.spacing.xl,
         marginBottom: layout.spacing.lg,
-        borderWidth: 1,
     },
     connectedHeader: {
         flexDirection: 'row',

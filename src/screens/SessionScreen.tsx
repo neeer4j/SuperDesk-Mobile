@@ -267,6 +267,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
     const stopScreenShareOnly = () => {
         webRTCService.stopScreenShare();
         sessionManager.setScreenSharing(false);
+        setIsCapturing(false);
     };
 
     const endSession = () => {
@@ -496,6 +497,17 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
                     style={{ flex: 1, marginLeft: 8 }}
                 />
             </View>
+
+            {isCapturing && (
+                <View
+                    pointerEvents="none"
+                    style={[styles.shareOverlay, { backgroundColor: colors.success + 'E6' }]}
+                >
+                    <Text style={[styles.shareOverlayText, { color: colors.background }]}>
+                        Screen is being shared
+                    </Text>
+                </View>
+            )}
         </ScreenContainer>
     );
 };
@@ -503,6 +515,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        position: 'relative',
     },
     header: {
         flexDirection: 'row',
@@ -575,6 +588,7 @@ const styles = StyleSheet.create({
     divider: {
         height: 1,
         marginVertical: layout.spacing.md,
+        opacity: 0.3,
     },
     label: {
         fontSize: 10,
@@ -588,7 +602,7 @@ const styles = StyleSheet.create({
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     },
     warningCard: {
-        borderWidth: 1,
+        // Uses background color from inline styles
     },
     warningTitle: {
         fontWeight: 'bold',
@@ -600,6 +614,25 @@ const styles = StyleSheet.create({
     footer: {
         flexDirection: 'row',
         marginBottom: layout.spacing.lg,
+    },
+    shareOverlay: {
+        position: 'absolute',
+        bottom: layout.spacing.lg,
+        right: layout.spacing.lg,
+        borderRadius: 999,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOpacity: 0.2,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 6,
+    },
+    shareOverlayText: {
+        fontWeight: '700',
     },
 });
 

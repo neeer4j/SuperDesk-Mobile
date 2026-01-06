@@ -1,12 +1,18 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useCallback } from 'react';
 import {
-    TouchableOpacity,
+    Pressable,
     Text,
     StyleSheet,
     ActivityIndicator,
     ViewStyle,
     TextStyle,
 } from 'react-native';
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withSpring,
+    withTiming,
+} from 'react-native-reanimated';
 import { layout, typography } from '../../theme/designSystem';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -22,6 +28,8 @@ interface ButtonProps {
     icon?: React.ReactNode;
 }
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 const ButtonComponent: React.FC<ButtonProps> = ({
     title,
     onPress,
@@ -34,6 +42,7 @@ const ButtonComponent: React.FC<ButtonProps> = ({
     icon,
 }) => {
     const { colors } = useTheme();
+    const scale = useSharedValue(1);
 
     const backgroundColor = useMemo(() => {
         if (disabled) return colors.border;
@@ -115,11 +124,24 @@ const ButtonComponent: React.FC<ButtonProps> = ({
         [textColor, fontSize, icon, textStyle],
     );
 
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    const handlePressIn = useCallback(() => {
+        scale.value = withSpring(0.95, { damping: 15, stiffness: 400 });
+    }, []);
+
+    const handlePressOut = useCallback(() => {
+        scale.value = withSpring(1, { damping: 15, stiffness: 400 });
+    }, []);
+
     return (
-        <TouchableOpacity
-            style={buttonStyle}
+        <AnimatedPressable
+            style={[buttonStyle, animatedStyle]}
             onPress={onPress}
-            activeOpacity={0.7}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
             disabled={disabled || loading}>
             {loading ? (
                 <ActivityIndicator color={textColor} />
@@ -129,7 +151,7 @@ const ButtonComponent: React.FC<ButtonProps> = ({
                     <Text style={labelStyle}>{title}</Text>
                 </>
             )}
-        </TouchableOpacity>
+        </AnimatedPressable>
     );
 };
 

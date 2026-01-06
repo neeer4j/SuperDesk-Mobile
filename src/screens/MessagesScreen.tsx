@@ -14,7 +14,7 @@ import {
 
 import { messagesService, Message } from '../services/supabaseClient';
 import { useTheme } from '../context/ThemeContext';
-import { ScreenContainer, Card } from '../components/ui'; // Button not strictly needed for list items but good to have
+import { ScreenContainer, Card, SkeletonListItem } from '../components/ui'; // Button not strictly needed for list items but good to have
 import { typography, layout } from '../theme/designSystem';
 
 interface MessagesScreenProps {
@@ -156,7 +156,11 @@ const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
 
             {isLoading ? (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.primary} />
+                    <SkeletonListItem />
+                    <SkeletonListItem />
+                    <SkeletonListItem />
+                    <SkeletonListItem />
+                    <SkeletonListItem />
                 </View>
             ) : (
                 <FlatList

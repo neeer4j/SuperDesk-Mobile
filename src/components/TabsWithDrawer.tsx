@@ -2,11 +2,23 @@
 
 import { Logger } from '../utils/Logger';
 // Updated Tab Navigator with Drawer Integration
-import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, TouchableOpacity, StyleSheet, Image, Text, Dimensions } from 'react-native';
+import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import Animated, {
+    useAnimatedStyle,
+    withSpring,
+    withTiming,
+    useSharedValue,
+    interpolate,
+    Extrapolate,
+    FadeIn,
+    FadeOut,
+    SlideInRight,
+    SlideOutLeft,
+} from 'react-native-reanimated';
 import { useTheme } from '../context/ThemeContext';
-import { layout } from '../theme/designSystem';
+import { layout, typography } from '../theme/designSystem';
 
 // Screens
 import HostSessionScreen from '../screens/HostSessionScreen';
@@ -38,6 +50,163 @@ export type TabParamList = {
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const TAB_COUNT = 5;
+const TAB_WIDTH = SCREEN_WIDTH / TAB_COUNT;
+
+// Animated Tab Item
+interface AnimatedTabItemProps {
+    isFocused: boolean;
+    label: string;
+    icon: React.ReactNode;
+    activeIcon: React.ReactNode;
+    onPress: () => void;
+    onLongPress: () => void;
+    color: string;
+    activeColor: string;
+}
+
+const AnimatedTabItem: React.FC<AnimatedTabItemProps> = ({
+    isFocused,
+    label,
+    icon,
+    activeIcon,
+    onPress,
+    onLongPress,
+    color,
+    activeColor,
+}) => {
+    const scale = useSharedValue(1);
+    const translateY = useSharedValue(0);
+
+    useEffect(() => {
+        if (isFocused) {
+            scale.value = withSpring(1.15, { damping: 12, stiffness: 200 });
+            translateY.value = withSpring(-2, { damping: 12, stiffness: 200 });
+        } else {
+            scale.value = withSpring(1, { damping: 12, stiffness: 200 });
+            translateY.value = withSpring(0, { damping: 12, stiffness: 200 });
+        }
+    }, [isFocused]);
+
+    const animatedIconStyle = useAnimatedStyle(() => ({
+        transform: [
+            { scale: scale.value },
+            { translateY: translateY.value },
+        ],
+    }));
+
+    const animatedLabelStyle = useAnimatedStyle(() => ({
+        opacity: withTiming(isFocused ? 1 : 0.6, { duration: 200 }),
+        transform: [{ scale: withTiming(isFocused ? 1 : 0.95, { duration: 200 }) }],
+    }));
+
+    return (
+        <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityState={isFocused ? { selected: true } : {}}
+            accessibilityLabel={label}
+            onPress={onPress}
+            onLongPress={onLongPress}
+            style={styles.tabItem}
+            activeOpacity={0.7}
+        >
+            <Animated.View style={animatedIconStyle}>
+                {isFocused ? activeIcon : icon}
+            </Animated.View>
+            <Animated.Text
+                style={[
+                    styles.tabLabel,
+                    { color: isFocused ? activeColor : color },
+                    animatedLabelStyle,
+                ]}
+            >
+                {label}
+            </Animated.Text>
+        </TouchableOpacity>
+    );
+};
+
+// Custom Tab Bar with animations
+const CustomTabBar: React.FC<BottomTabBarProps & { colors: any }> = ({
+    state,
+    descriptors,
+    navigation,
+    colors,
+}) => {
+    const indicatorPosition = useSharedValue(state.index * TAB_WIDTH);
+
+    useEffect(() => {
+        indicatorPosition.value = withSpring(state.index * TAB_WIDTH, {
+            damping: 15,
+            stiffness: 150,
+        });
+    }, [state.index]);
+
+    const indicatorStyle = useAnimatedStyle(() => ({
+        transform: [{ translateX: indicatorPosition.value }],
+    }));
+
+    const tabIcons: Record<string, { icon: (color: string) => React.ReactNode; label: string }> = {
+        Host: { icon: (c) => <HostIcon size={22} color={c} />, label: 'Host' },
+        Join: { icon: (c) => <JoinIcon size={22} color={c} />, label: 'Join' },
+        FileTransfer: { icon: (c) => <FileTransferIcon size={22} color={c} />, label: 'Files' },
+        Friends: { icon: (c) => <FriendsIcon size={22} color={c} />, label: 'Friends' },
+        Messages: { icon: (c) => <MessagesIcon size={22} color={c} />, label: 'Chat' },
+    };
+
+    return (
+        <View style={[styles.tabBar, { backgroundColor: colors.tabBarGlass, borderTopColor: colors.glassBorder }]}>
+            {/* Animated indicator */}
+            <Animated.View
+                style={[
+                    styles.tabIndicator,
+                    { backgroundColor: colors.primary + '20' },
+                    indicatorStyle,
+                ]}
+            />
+
+            {state.routes.map((route, index) => {
+                const { options } = descriptors[route.key];
+                const isFocused = state.index === index;
+                const tabConfig = tabIcons[route.name];
+
+                const onPress = () => {
+                    const event = navigation.emit({
+                        type: 'tabPress',
+                        target: route.key,
+                        canPreventDefault: true,
+                    });
+
+                    if (!isFocused && !event.defaultPrevented) {
+                        navigation.navigate(route.name);
+                    }
+                };
+
+                const onLongPress = () => {
+                    navigation.emit({
+                        type: 'tabLongPress',
+                        target: route.key,
+                    });
+                };
+
+                return (
+                    <AnimatedTabItem
+                        key={route.key}
+                        isFocused={isFocused}
+                        label={tabConfig.label}
+                        icon={tabConfig.icon(colors.textTertiary)}
+                        activeIcon={tabConfig.icon(colors.primary)}
+                        onPress={onPress}
+                        onLongPress={onLongPress}
+                        color={colors.textTertiary}
+                        activeColor={colors.primary}
+                    />
+                );
+            })}
+        </View>
+    );
+};
 
 interface TabsWithDrawerProps {
     navigation: any;
@@ -64,20 +233,13 @@ const TabsWithDrawer: React.FC<TabsWithDrawerProps> = ({ navigation }) => {
     return (
         <>
             <Tab.Navigator
+                tabBar={(props) => <CustomTabBar {...props} colors={colors} />}
                 screenOptions={{
                     headerShown: true,
-                    tabBarStyle: [styles.tabBar, {
-                        backgroundColor: colors.surface,
-                        borderTopColor: colors.border,
-                    }],
-                    tabBarActiveTintColor: colors.primary,
-                    tabBarInactiveTintColor: colors.textTertiary,
-                    tabBarShowLabel: true,
-                    tabBarLabelStyle: styles.tabLabel,
+                    lazy: false, // Pre-load all screens to avoid loading flicker
                     headerStyle: {
                         backgroundColor: colors.background,
-                        borderBottomColor: colors.border,
-                        borderBottomWidth: 1,
+                        borderBottomWidth: 0,
                         elevation: 0,
                         shadowOpacity: 0,
                     },
@@ -103,56 +265,11 @@ const TabsWithDrawer: React.FC<TabsWithDrawerProps> = ({ navigation }) => {
                     ),
                 }}
             >
-                <Tab.Screen
-                    name="Host"
-                    component={HostSessionScreen}
-                    options={{
-                        tabBarLabel: 'Host',
-                        tabBarIcon: ({ color, size }) => (
-                            <HostIcon size={size} color={color} />
-                        ),
-                    }}
-                />
-                <Tab.Screen
-                    name="Join"
-                    component={JoinSessionScreen}
-                    options={{
-                        tabBarLabel: 'Join',
-                        tabBarIcon: ({ color, size }) => (
-                            <JoinIcon size={size} color={color} />
-                        ),
-                    }}
-                />
-                <Tab.Screen
-                    name="FileTransfer"
-                    component={FileTransferScreen}
-                    options={{
-                        tabBarLabel: 'Files',
-                        tabBarIcon: ({ color, size }) => (
-                            <FileTransferIcon size={size} color={color} />
-                        ),
-                    }}
-                />
-                <Tab.Screen
-                    name="Friends"
-                    component={FriendsScreen}
-                    options={{
-                        tabBarLabel: 'Friends',
-                        tabBarIcon: ({ color, size }) => (
-                            <FriendsIcon size={size} color={color} />
-                        ),
-                    }}
-                />
-                <Tab.Screen
-                    name="Messages"
-                    component={MessagesScreen}
-                    options={{
-                        tabBarLabel: 'Chat',
-                        tabBarIcon: ({ color, size }) => (
-                            <MessagesIcon size={size} color={color} />
-                        ),
-                    }}
-                />
+                <Tab.Screen name="Host" component={HostSessionScreen} />
+                <Tab.Screen name="Join" component={JoinSessionScreen} />
+                <Tab.Screen name="FileTransfer" component={FileTransferScreen} />
+                <Tab.Screen name="Friends" component={FriendsScreen} />
+                <Tab.Screen name="Messages" component={MessagesScreen} />
             </Tab.Navigator>
 
             <SideDrawer
@@ -168,15 +285,31 @@ const TabsWithDrawer: React.FC<TabsWithDrawerProps> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
     tabBar: {
+        flexDirection: 'row',
         borderTopWidth: 1,
-        height: 65,
+        height: 70,
         paddingTop: 8,
-        paddingBottom: 8,
+        paddingBottom: 12,
+        position: 'relative',
+    },
+    tabItem: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 4,
     },
     tabLabel: {
         fontSize: 10,
-        fontWeight: '500',
+        fontWeight: '600',
         marginTop: 4,
+    },
+    tabIndicator: {
+        position: 'absolute',
+        top: 4,
+        width: TAB_WIDTH - 16,
+        height: 48,
+        borderRadius: 12,
+        marginHorizontal: 8,
     },
     menuButton: {
         marginLeft: 16,

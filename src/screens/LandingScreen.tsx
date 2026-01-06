@@ -225,6 +225,14 @@ const LandingScreen = () => {
                     }
                 ]}
             />
+
+            <View style={styles.topLogoBar}>
+                <Image
+                    source={theme === 'dark' ? require('../assets/superdeskw.png') : require('../assets/superdesk.png')}
+                    style={styles.footerLogo}
+                    resizeMode="contain"
+                />
+            </View>
             <Animated.View
                 style={[
                     styles.decorativeCircle2,
@@ -328,15 +336,6 @@ const LandingScreen = () => {
                         </TouchableOpacity>
                     </Animated.View>
 
-                    {/* Footer with branding */}
-                    <View style={styles.footerBranding}>
-                        <Image
-                            source={theme === 'dark' ? require('../assets/superdeskw.png') : require('../assets/superdesk.png')}
-                            style={styles.footerLogo}
-                            resizeMode="contain"
-                        />
-                        <Text style={[styles.versionText, { color: colors.subText }]}>v1.0</Text>
-                    </View>
                 </>
             ) : (
                 /* ===== NOT LOGGED IN LAYOUT ===== */
@@ -395,8 +394,6 @@ const LandingScreen = () => {
                         </Animated.View>
                     </Animated.View>
 
-                    {/* Version Footer */}
-                    <Text style={[styles.versionFooter, { color: colors.subText }]}>v1.0</Text>
                 </>
             )}
         </View>
@@ -522,21 +519,18 @@ const styles = StyleSheet.create({
         fontFamily: typography.fontFamily.medium,
         opacity: 0.7,
     },
-    footerBranding: {
+    topLogoBar: {
         position: 'absolute',
-        bottom: layout.spacing.xl,
+        top: layout.spacing.lg,
+        width: '100%',
         alignItems: 'center',
+        zIndex: 2,
     },
     footerLogo: {
         width: 225,
         height: 62,
         marginBottom: layout.spacing.sm,
         opacity: 0.9,
-    },
-    versionText: {
-        fontSize: typography.size.xs,
-        fontFamily: typography.fontFamily.regular,
-        opacity: 0.5,
     },
     // ===== NOT LOGGED IN STYLES =====
     logoRow: {
@@ -571,13 +565,6 @@ const styles = StyleSheet.create({
         fontFamily: typography.fontFamily.medium,
         marginBottom: layout.spacing.xxl,
         opacity: 0.8,
-    },
-    versionFooter: {
-        position: 'absolute',
-        bottom: layout.spacing.xl,
-        fontSize: typography.size.xs,
-        fontFamily: typography.fontFamily.regular,
-        opacity: 0.5,
     },
     fingerprintTouchArea: {
         alignItems: 'center',
