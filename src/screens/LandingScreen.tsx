@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-import { Logger } from '../utils/Logger';
     View,
     Text,
     TouchableOpacity,
@@ -11,6 +10,7 @@ import { Logger } from '../utils/Logger';
     StyleSheet,
     ActivityIndicator,
 } from 'react-native';
+import { Logger } from '../utils/Logger';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
