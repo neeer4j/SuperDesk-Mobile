@@ -22,6 +22,7 @@ import { useTheme, accentColors, AccentColorKey } from '../context/ThemeContext'
 import { authService } from '../services/supabaseClient';
 import { biometricService, BiometryType } from '../services/BiometricService';
 import { hapticService } from '../services/HapticService';
+import { sessionHistoryService, SessionHistoryItem } from '../services/SessionHistoryService';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.85;
 const SWIPE_THRESHOLD = 50;
@@ -44,14 +45,15 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
     const overlayOpacity = useRef(new Animated.Value(0)).current;
 
     const [userProfile, setUserProfile] = useState(initialProfile);
-    // Preference toggles for notifications/audio were removed because they were not wired
-    // into any behavior. Add back with real side effects before exposing in UI.
-    const [videoQuality, setVideoQuality] = useState('Auto');
     const [showEditProfile, setShowEditProfile] = useState(false);
     const [editUsername, setEditUsername] = useState('');
     const [biometryType, setBiometryType] = useState<BiometryType | null>(null);
     const [biometricsEnabled, setBiometricsEnabled] = useState(false);
     const [biometricTimeout, setBiometricTimeout] = useState(0);
+
+    // Session history state
+    const [sessionHistory, setSessionHistory] = useState<SessionHistoryItem[]>([]);
+    const [showAllHistory, setShowAllHistory] = useState(false);
 
     useEffect(() => {
         setUserProfile(initialProfile);
@@ -59,6 +61,22 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
             setEditUsername(initialProfile.username);
         }
     }, [initialProfile]);
+
+    // Load session history when drawer opens
+    useEffect(() => {
+        if (isOpen) {
+            loadSessionHistory();
+        }
+    }, [isOpen]);
+
+    const loadSessionHistory = async () => {
+        try {
+            const history = await sessionHistoryService.getHistory(showAllHistory ? 50 : 10);
+            setSessionHistory(history);
+        } catch (error) {
+            Logger.debug('📱 SideDrawer: Failed to load session history:', error);
+        }
+    };
 
     // Load biometric settings
     useEffect(() => {
@@ -377,15 +395,91 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isOpen, onClose, onOpen, naviga
                         )}
                     </View>
 
-                    {/* Connection Section */}
-                    <Text style={[styles.sectionTitle, { color: colors.primary }]}>CONNECTION</Text>
+                    {/* Session History Section */}
+                    <Text style={[styles.sectionTitle, { color: colors.primary }]}>SESSION HISTORY</Text>
                     <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-                        <SettingDropdown
-                            icon="📺"
-                            title="Video Quality"
-                            subtitle="Adjust stream quality"
-                            value={videoQuality}
-                        />
+                        {sessionHistory.length === 0 ? (
+                            <View style={styles.emptyHistory}>
+                                <Text style={[styles.emptyHistoryIcon]}>📜</Text>
+                                <Text style={[styles.emptyHistoryText, { color: colors.subText }]}>
+                                    No sessions yet
+                                </Text>
+                            </View>
+                        ) : (
+                            <>
+                                {sessionHistory.slice(0, showAllHistory ? 50 : 10).map((session, index) => (
+                                    <View
+                                        key={session.id}
+                                        style={[
+                                            styles.historyItem,
+                                            index < sessionHistory.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }
+                                        ]}
+                                    >
+                                        <View style={[
+                                            styles.historyRoleBadge,
+                                            { backgroundColor: session.role === 'host' ? colors.primary + '30' : colors.success + '30' }
+                                        ]}>
+                                            <Text style={[
+                                                styles.historyRoleText,
+                                                { color: session.role === 'host' ? colors.primary : colors.success }
+                                            ]}>
+                                                {session.role === 'host' ? '📱 Host' : '👁️ Guest'}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.historyInfo}>
+                                            <Text style={[styles.historyCode, { color: colors.text }]}>
+                                                {session.sessionId.length >= 8
+                                                    ? `${session.sessionId.slice(0, 4)}-${session.sessionId.slice(4, 8)}`
+                                                    : session.sessionId}
+                                            </Text>
+                                            <Text style={[styles.historyMeta, { color: colors.subText }]}>
+                                                {sessionHistoryService.formatDate(session.startTime)} • {sessionHistoryService.formatDuration(session.duration)}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                ))}
+                                {sessionHistory.length > 10 && !showAllHistory && (
+                                    <TouchableOpacity
+                                        style={styles.showMoreButton}
+                                        onPress={() => {
+                                            setShowAllHistory(true);
+                                            loadSessionHistory();
+                                        }}
+                                    >
+                                        <Text style={[styles.showMoreText, { color: colors.primary }]}>
+                                            Show more ({sessionHistory.length - 10} more)
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                                {sessionHistory.length > 0 && (
+                                    <TouchableOpacity
+                                        style={styles.clearHistoryButton}
+                                        onPress={() => {
+                                            Alert.alert(
+                                                'Clear History',
+                                                'Are you sure you want to clear all session history?',
+                                                [
+                                                    { text: 'Cancel', style: 'cancel' },
+                                                    {
+                                                        text: 'Clear',
+                                                        style: 'destructive',
+                                                        onPress: async () => {
+                                                            await sessionHistoryService.clearHistory();
+                                                            setSessionHistory([]);
+                                                            setShowAllHistory(false);
+                                                        }
+                                                    }
+                                                ]
+                                            );
+                                        }}
+                                    >
+                                        <Text style={[styles.clearHistoryText, { color: colors.error }]}>
+                                            Clear History
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                            </>
+                        )}
                     </View>
 
                     {/* Logout Button */}
@@ -722,6 +816,63 @@ const styles = StyleSheet.create({
     modalButtonText: {
         fontSize: 16,
         fontWeight: '600',
+    },
+    // Session History Styles
+    emptyHistory: {
+        padding: 24,
+        alignItems: 'center',
+    },
+    emptyHistoryIcon: {
+        fontSize: 32,
+        marginBottom: 8,
+    },
+    emptyHistoryText: {
+        fontSize: 14,
+    },
+    historyItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+    },
+    historyRoleBadge: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+        marginRight: 12,
+    },
+    historyRoleText: {
+        fontSize: 11,
+        fontWeight: '600',
+    },
+    historyInfo: {
+        flex: 1,
+    },
+    historyCode: {
+        fontSize: 14,
+        fontWeight: '600',
+        letterSpacing: 1,
+    },
+    historyMeta: {
+        fontSize: 11,
+        marginTop: 2,
+    },
+    showMoreButton: {
+        padding: 12,
+        alignItems: 'center',
+        borderTopWidth: 1,
+    },
+    showMoreText: {
+        fontSize: 13,
+        fontWeight: '500',
+    },
+    clearHistoryButton: {
+        padding: 12,
+        alignItems: 'center',
+        borderTopWidth: 1,
+    },
+    clearHistoryText: {
+        fontSize: 13,
+        fontWeight: '500',
     },
 });
 

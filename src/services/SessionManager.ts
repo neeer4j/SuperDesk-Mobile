@@ -5,6 +5,7 @@
 import { socketService } from './SocketService';
 import { webRTCService } from './WebRTCService';
 import { Logger } from '../utils/Logger';
+import { sessionHistoryService } from './SessionHistoryService';
 
 export interface SessionState {
     isActive: boolean;
@@ -41,6 +42,9 @@ class SessionManager {
         isScreenSharing: false,
         isWebRTCConnected: false,
     };
+
+    // Track when session started for history recording
+    private sessionStartTime: number | null = null;
 
     private constructor() {
         this.setupSocketListeners();
@@ -85,6 +89,7 @@ class SessionManager {
         // Listen for session created (as host)
         socketService.onSessionCreated((data) => {
             Logger.debug('📱 [SessionManager] Session created:', data.sessionId);
+            this.sessionStartTime = Date.now();
             this.updateState({
                 isActive: true,
                 role: 'host',
@@ -104,6 +109,7 @@ class SessionManager {
         // Listen for successful join (as guest)
         socketService.onSessionJoined((sessionId) => {
             Logger.debug('📱 [SessionManager] Joined session:', sessionId);
+            this.sessionStartTime = Date.now();
             this.updateState({
                 isActive: true,
                 role: 'guest',
@@ -139,7 +145,29 @@ class SessionManager {
         this.emit('stateChanged', this.state, prevState);
     }
 
-    private resetState() {
+    private async resetState() {
+        // Record session to history before clearing state
+        if (this.state.isActive && this.state.sessionId && this.state.role && this.sessionStartTime) {
+            const endTime = Date.now();
+            const duration = Math.floor((endTime - this.sessionStartTime) / 1000);
+
+            try {
+                await sessionHistoryService.addSession({
+                    sessionId: this.state.sessionId,
+                    role: this.state.role,
+                    startTime: this.sessionStartTime,
+                    endTime: endTime,
+                    duration: duration,
+                    peerId: this.state.peerId || undefined,
+                });
+                Logger.debug('📱 [SessionManager] Session recorded to history');
+            } catch (error) {
+                console.error('📱 [SessionManager] Failed to record session:', error);
+            }
+        }
+
+        this.sessionStartTime = null;
+
         this.updateState({
             isActive: false,
             role: null,
