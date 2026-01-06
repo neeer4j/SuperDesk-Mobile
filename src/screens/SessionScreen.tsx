@@ -459,7 +459,10 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ route, navigation }) => {
                     }]}>
                         <Text style={[styles.warningTitle, { color: colors.warning }]}>⚠️ Access Required</Text>
                         <Text style={[styles.warningText, { color: colors.textSecondary }]}>
-                            Accessibility permission is needed for remote control to work.
+                            Accessibility permission is needed for remote control. Follow these steps:
+                            {'\n'}1) Tap "Open Settings"
+                            {'\n'}2) Find "SuperDesk" in the list
+                            {'\n'}3) Enable the toggle, then return to the app
                         </Text>
                         <Button
                             title="Open Settings"
