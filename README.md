@@ -44,15 +44,22 @@ A powerful React Native mobile client for [SuperDesk](https://github.com/neeer4j
 ### Installation
 
 ```bash
-# Install dependencies
+# 1. Install dependencies
 npm install
 
-# Start Metro bundler
+# 2. Setup environment variables
+# Copy the example file and add your credentials
+cp .env.example .env
+# Then edit .env with your Supabase credentials
+
+# 3. Start Metro bundler
 npm start
 
-# Run on Android (in a separate terminal)
+# 4. Run on Android (in a separate terminal)
 npm run android
 ```
+
+> **Important**: Make sure to configure your `.env` file with valid Supabase credentials before running the app. See [SECURITY.md](./SECURITY.md) for details.
 
 ## 📁 Project Structure
 
