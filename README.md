@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://skillicons.dev/icons?i=react,ts,kotlin,nodejs,express,supabase,vscode,github" alt="Tech stack" />
+  <img src="https://skillicons.dev/icons?i=react,ts,kotlin,nodejs,express,supabase,azure,vscode,github" alt="Tech stack" />
 </p>
 
 # SuperDesk Android
@@ -107,11 +107,12 @@ SuperDesk-Android/
 
 ## 🔧 Configuration
 
-The app connects to the SuperDesk signaling server. To change the endpoint, modify `src/services/SocketService.ts`:
+The app connects to the SuperDesk signaling server on Azure. To change the endpoint, modify `src/services/SocketService.ts`:
 
 ```typescript
-const SOCKET_URL = 'https://your-signal-server.com';
+const SOCKET_URL = 'https://supderdesk-fgasbfdze6bwbbav.centralindia-01.azurewebsites.net';
 ```
+
 
 ## 📄 License
 
