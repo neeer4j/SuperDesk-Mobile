@@ -16,7 +16,7 @@ interface RTCIceCandidateInit {
 }
 
 // Default to the SuperDesk Azure server
-const DEFAULT_SERVER_URL = 'https://supderdesk-fgasbfdze6bwbbav.centralindia-01.azurewebsites.net';
+const DEFAULT_SERVER_URL = 'https://supderdesk.azurewebsites.net';
 
 // Session types
 export type SessionType = 'mobile' | 'desktop';
