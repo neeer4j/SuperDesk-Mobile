@@ -9,8 +9,8 @@ import { socketService, OfferData, AnswerData, IceCandidateData } from './Socket
 import { fileTransferService } from './FileTransferService';
 import { Logger } from '../utils/Logger';
 
-// Server URL for fetching WebRTC config
-const SERVER_URL = 'https://superdesk-7m7f.onrender.com';
+// Server URL for fetching WebRTC config - MUST match SocketService server
+const SERVER_URL = 'https://supderdesk-fgasbfdze6bwbbav.centralindia-01.azurewebsites.net';
 
 // ICE server type
 interface IceServer {
