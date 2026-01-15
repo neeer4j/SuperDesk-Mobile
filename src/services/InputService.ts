@@ -1,10 +1,8 @@
 // Input service for translating touch gestures to mouse/keyboard events
+// Uses WebRTC data channel for lowest latency (P2P) - NO Socket.IO fallback
 
 import { Logger } from '../utils/Logger';
-// Input service for translating touch gestures to mouse/keyboard events
-// Uses WebRTC data channel for lowest latency (P2P) with Socket.IO fallback
 import { webRTCService } from './WebRTCService';
-import { socketService } from './SocketService';
 import { hapticService } from './HapticService';
 
 export interface TouchPosition {
@@ -28,7 +26,6 @@ class InputService {
     private viewWidth: number = 0;
     private viewHeight: number = 0;
     private sessionId: string | null = null;
-    private preferDataChannel: boolean = true; // Use P2P for lowest latency
 
     // Set the local view dimensions for coordinate normalization
     setViewSize = (width: number, height: number) => {
@@ -36,7 +33,7 @@ class InputService {
         this.viewHeight = height;
     }
 
-    // Set the session ID for Socket.IO fallback
+    // Set the session ID (kept for compatibility)
     setSessionId = (sessionId: string) => {
         this.sessionId = sessionId;
     }
@@ -49,40 +46,18 @@ class InputService {
         };
     }
 
-    // Send input event - uses data channel if available, Socket.IO as fallback
+    // Send input event - uses DataChannel ONLY for lowest latency (P2P)
+    // If DataChannel is not open, inputs are dropped (better than Socket.IO delay)
     private sendInput = (event: InputEvent) => {
         const dataChannelOpen = webRTCService.isDataChannelOpen();
-        Logger.debug(`📱 Sending input: ${event.type}:${event.action}, dataChannel=${dataChannelOpen}, sessionId=${this.sessionId}`);
 
-        // Try data channel first (lowest latency - P2P)
-        if (this.preferDataChannel && dataChannelOpen) {
-            Logger.debug('📱 Using data channel for input');
+        if (dataChannelOpen) {
+            // Direct P2P - lowest latency (~5-15ms)
             webRTCService.sendInputEvent(event);
-        } else if (this.sessionId) {
-            // Fallback to Socket.IO
-            Logger.debug('📱 Using Socket.IO fallback for input');
-            if (event.type === 'mouse') {
-                socketService.sendMouseEvent(
-                    this.sessionId,
-                    event.action as 'move' | 'click' | 'wheel',
-                    event.data.x,
-                    event.data.y,
-                    {
-                        button: event.data.button,
-                        deltaX: event.data.deltaX,
-                        deltaY: event.data.deltaY,
-                    }
-                );
-            } else if (event.type === 'keyboard') {
-                socketService.sendKeyboardEvent(
-                    this.sessionId,
-                    event.action === 'press' ? 'down' : 'up',
-                    event.data.key,
-                    event.data.code || event.data.key
-                );
-            }
         } else {
-            console.warn('📱 Cannot send input: no data channel and no sessionId');
+            // DataChannel not open - drop input rather than add 50-200ms Socket.IO delay
+            // Real-time control: dropped input > delayed input
+            Logger.debug(`📱 Input dropped (DataChannel not open): ${event.type}:${event.action}`);
         }
     }
 
@@ -194,10 +169,6 @@ class InputService {
         });
     }
 
-    // ...
-
-
-
     // Handle pinch zoom (scroll)
     onPinch = (scale: number, centerX: number, centerY: number) => {
         const pos = this.normalizeCoordinates(centerX, centerY);
@@ -308,14 +279,9 @@ class InputService {
         });
     }
 
-    // Set preference for data channel vs Socket.IO
-    setPreferDataChannel = (prefer: boolean) => {
-        this.preferDataChannel = prefer;
-    }
-
-    // Check if input is ready
+    // Check if input is ready (DataChannel open)
     isReady = (): boolean => {
-        return webRTCService.isDataChannelOpen() || !!this.sessionId;
+        return webRTCService.isDataChannelOpen();
     }
 }
 
