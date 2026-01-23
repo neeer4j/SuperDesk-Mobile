@@ -19,6 +19,7 @@ import {
 import { BackIcon } from '../components/Icons';
 import { authService } from '../services/supabaseClient';
 import { biometricService, BiometryType } from '../services/BiometricService';
+import { socketService } from '../services/SocketService';
 import { useTheme } from '../context/ThemeContext';
 
 interface SettingsScreenProps {
@@ -42,11 +43,44 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
     const [editUsername, setEditUsername] = useState('');
     const [biometryType, setBiometryType] = useState<BiometryType | null>(null);
     const [biometricsEnabled, setBiometricsEnabled] = useState(false);
+    const [serverUrl, setServerUrl] = useState('');
+    const [isEditingServerUrl, setIsEditingServerUrl] = useState(false);
+    const [newServerUrl, setNewServerUrl] = useState('');
 
     useEffect(() => {
         loadUserProfile();
         loadBiometricSettings();
+        loadServerSettings();
     }, []);
+
+    const loadServerSettings = async () => {
+        const url = socketService.getServerUrl();
+        setServerUrl(url);
+        setNewServerUrl(url);
+    };
+
+    const handleSaveServerUrl = async () => {
+        try {
+            await socketService.setServerUrl(newServerUrl);
+            setServerUrl(newServerUrl);
+            setIsEditingServerUrl(false);
+            Alert.alert('Restart Required', 'Please restart the app for connection changes to take full effect.');
+        } catch (error) {
+            Alert.alert('Error', 'Failed to save server URL');
+        }
+    };
+
+    const handleResetServerUrl = async () => {
+        try {
+            await socketService.resetServerUrl();
+            const defaultUrl = socketService.getServerUrl();
+            setServerUrl(defaultUrl);
+            setNewServerUrl(defaultUrl);
+            Alert.alert('Reset', 'Server URL reset to default');
+        } catch (error) {
+            Alert.alert('Error', 'Failed to reset server URL');
+        }
+    };
 
     const loadBiometricSettings = async () => {
         try {
@@ -271,6 +305,23 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
                     />
                 </View>
 
+                <Text style={[styles.sectionTitle, { color: colors.primary }]}>SERVER CONFIGURATION</Text>
+                <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+                    <TouchableOpacity
+                        style={[styles.settingRow, { borderBottomColor: colors.border }]}
+                        onPress={() => setIsEditingServerUrl(true)}
+                    >
+                        <View style={[styles.settingIcon, { backgroundColor: colors.iconBackground }]}>
+                            <Text style={styles.iconText}>🌐</Text>
+                        </View>
+                        <View style={styles.settingInfo}>
+                            <Text style={[styles.settingTitle, { color: colors.text }]}>Server URL</Text>
+                            <Text numberOfLines={1} style={[styles.settingSubtitle, { color: colors.subText }]}>{serverUrl}</Text>
+                        </View>
+                        <Text style={[styles.chevron, { color: colors.subText }]}>✎</Text>
+                    </TouchableOpacity>
+                </View>
+
                 <TouchableOpacity
                     style={[styles.logoutButton, { borderColor: colors.error + '40', backgroundColor: colors.error + '20' }]}
                     onPress={handleLogout}
@@ -350,6 +401,52 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation, onLogout })
                                 <Text style={[styles.modalSaveText, { color: '#ffffff' }]}>Save</Text>
                             </TouchableOpacity>
                         </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Server URL Modal */}
+            <Modal
+                visible={isEditingServerUrl}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setIsEditingServerUrl(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+                        <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 16 }]}>Edit Server URL</Text>
+
+                        <TextInput
+                            style={[styles.modalInput, { backgroundColor: colors.border, color: colors.text, marginBottom: 12 }]}
+                            value={newServerUrl}
+                            onChangeText={setNewServerUrl}
+                            placeholder="https://..."
+                            placeholderTextColor={colors.subText}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
+
+                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                            <TouchableOpacity
+                                style={[styles.modalCancelButton, { backgroundColor: colors.border }]}
+                                onPress={() => setIsEditingServerUrl(false)}
+                            >
+                                <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalSaveButton, { backgroundColor: colors.primary }]}
+                                onPress={handleSaveServerUrl}
+                            >
+                                <Text style={[styles.modalSaveText, { color: '#fff' }]}>Save</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity
+                            style={{ marginTop: 16, alignItems: 'center' }}
+                            onPress={handleResetServerUrl}
+                        >
+                            <Text style={{ color: colors.error, fontSize: 14 }}>Reset to Default</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </Modal>

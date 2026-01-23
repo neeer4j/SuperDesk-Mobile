@@ -27,7 +27,7 @@ class LoggerService {
      */
     debug(...args: any[]): void {
         if (this.isDevelopment) {
-            Logger.debug(...args);
+            console.debug('[DEBUG]', ...args);
         }
     }
 
@@ -37,7 +37,7 @@ class LoggerService {
      */
     info(...args: any[]): void {
         if (this.isDevelopment) {
-            Logger.info(...args);
+            console.info('[INFO]', ...args);
         }
     }
 
@@ -46,7 +46,7 @@ class LoggerService {
      * Use for potential issues that should be monitored
      */
     warn(...args: any[]): void {
-        console.warn(...args);
+        console.warn('[WARN]', ...args);
     }
 
     /**
@@ -54,7 +54,7 @@ class LoggerService {
      * Use for errors and exceptions
      */
     error(...args: any[]): void {
-        console.error(...args);
+        console.error('[ERROR]', ...args);
     }
 
     /**

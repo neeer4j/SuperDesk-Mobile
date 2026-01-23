@@ -9,9 +9,6 @@ import { socketService, OfferData, AnswerData, IceCandidateData } from './Socket
 import { fileTransferService } from './FileTransferService';
 import { Logger } from '../utils/Logger';
 
-// Server URL for fetching WebRTC config - MUST match SocketService server
-const SERVER_URL = 'https://supderdesk-fgasbfdze6bwbbav.centralindia-01.azurewebsites.net';
-
 // ICE server type
 interface IceServer {
     urls: string | string[];
@@ -33,8 +30,9 @@ const FALLBACK_ICE_SERVERS: IceServer[] = [
 // Fetch TURN/STUN configuration from server
 async function fetchWebRTCConfig(): Promise<IceServer[]> {
     try {
-        Logger.debug('🔧 Fetching WebRTC config from server...');
-        const response = await fetch(`${SERVER_URL}/api/webrtc-config`);
+        const serverUrl = socketService.getServerUrl();
+        Logger.debug('🔧 Fetching WebRTC config from server:', serverUrl);
+        const response = await fetch(`${serverUrl}/api/webrtc-config`);
 
         if (!response.ok) {
             Logger.warn('⚠️ Failed to fetch WebRTC config, using fallback');

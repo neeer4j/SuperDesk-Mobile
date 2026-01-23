@@ -1,5 +1,6 @@
 // Socket.io service for signaling server connection
 import { io, Socket } from 'socket.io-client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Logger } from '../utils/Logger';
 
 // WebRTC types for signaling
@@ -17,6 +18,7 @@ interface RTCIceCandidateInit {
 
 // Default to the SuperDesk Azure server
 const DEFAULT_SERVER_URL = 'https://supderdesk-fgasbfdze6bwbbav.centralindia-01.azurewebsites.net';
+const SERVER_URL_KEY = 'superdesk_server_url';
 
 // Session types
 export type SessionType = 'mobile' | 'desktop';
@@ -70,6 +72,7 @@ class SocketService {
     private socket: Socket | null = null;
     private serverUrl: string = DEFAULT_SERVER_URL;
     private currentSessionId: string | null = null;
+    private initialized: boolean = false;
 
     // Event callbacks
     private onSessionCreatedCallback?: (data: SessionCreatedData) => void;
@@ -90,9 +93,53 @@ class SocketService {
     private onMouseEventCallback?: (data: MouseEventData) => void;
     private onKeyboardEventCallback?: (data: KeyboardEventData) => void;
 
-    connect(serverUrl?: string): Promise<void> {
+    async initializeServerUrl() {
+        if (this.initialized) return;
+        try {
+            const storedUrl = await AsyncStorage.getItem(SERVER_URL_KEY);
+            if (storedUrl) {
+                this.serverUrl = storedUrl;
+                Logger.debug('📱 Loaded server URL:', this.serverUrl);
+            }
+        } catch (e) {
+            Logger.warn('Failed to load server URL:', e);
+        }
+        this.initialized = true;
+    }
+
+    async setServerUrl(url: string) {
+        this.serverUrl = url;
+        await AsyncStorage.setItem(SERVER_URL_KEY, url);
+        // Force reconnection
+        if (this.socket) {
+            this.socket.disconnect();
+            this.connect();
+        }
+    }
+
+    async resetServerUrl() {
+        this.serverUrl = DEFAULT_SERVER_URL;
+        await AsyncStorage.removeItem(SERVER_URL_KEY);
+        // Force reconnection
+        if (this.socket) {
+            this.socket.disconnect();
+            this.connect();
+        }
+    }
+
+    getServerUrl(): string {
+        return this.serverUrl;
+    }
+
+    async connect(serverUrl?: string): Promise<void> {
+        await this.initializeServerUrl();
+
         return new Promise((resolve, reject) => {
-            this.serverUrl = serverUrl || DEFAULT_SERVER_URL;
+            if (serverUrl) {
+                this.serverUrl = serverUrl;
+            }
+
+            Logger.info('📱 Connecting to:', this.serverUrl);
 
             this.socket = io(this.serverUrl, {
                 transports: ['websocket', 'polling'],
